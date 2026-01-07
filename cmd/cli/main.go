@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
+	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
 )
 
 func main() {
@@ -26,8 +28,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	grClient := goodreads.NewClient()
 	series := make(map[string]map[float64]booklore.Book)
 	for _, book := range books {
+		if book.GoodreadsId != "" {
+			b, err := grClient.GetBook(book.GoodreadsId)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("Fetched book info from Goodreads: %s\n", b.Title)
+		}
 		if book.SeriesName != "" {
 			if _, ok := series[book.SeriesName]; !ok {
 				series[book.SeriesName] = make(map[float64]booklore.Book)

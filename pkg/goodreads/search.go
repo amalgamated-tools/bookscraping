@@ -1,4 +1,4 @@
-package bookscraping
+package goodreads
 
 // // Search performs a search on Goodreads
 // func (c *Client) Search(query string, page int) (*SearchResult, error) {

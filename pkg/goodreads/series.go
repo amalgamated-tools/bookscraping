@@ -1,4 +1,4 @@
-package bookscraping
+package goodreads
 
 import (
 	"fmt"

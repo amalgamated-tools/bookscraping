@@ -1,4 +1,4 @@
-package bookscraping
+package goodreads
 
 // Book represents a book from Goodreads
 type Book struct {
@@ -18,6 +18,8 @@ type Book struct {
 	Genres         []string
 	SeriesName     string
 	SeriesPosition string
+	SeriesURL      string
+	SeriesID       string
 }
 
 type SeriesBook struct {

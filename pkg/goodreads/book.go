@@ -1,4 +1,4 @@
-package bookscraping
+package goodreads
 
 import (
 	"fmt"
@@ -167,11 +167,25 @@ func (c *Client) parseBook(doc *goquery.Document, url string) (*Book, error) {
 		seriesURL, _ := seriesLink.Attr("href")
 
 		book.SeriesName = seriesText
+		book.SeriesURL = seriesURL
+
+		// extract series ID from URL
+		re := regexp.MustCompile(`/series/(\d+)`)
+		if matches := re.FindStringSubmatch(seriesURL); len(matches) > 1 {
+			book.SeriesID = matches[1]
+
+			series, err := c.GetSeries(book.SeriesID)
+			if err != nil {
+				log.Printf("Error fetching series info: %v", err)
+			} else {
+				log.Printf("Fetched series info: %s", series.Title)
+			}
+		}
 
 		// Extract series position from surrounding text
 		seriesParent := seriesLink.Parent().Text()
-		re := regexp.MustCompile(`#([\d.]+)`)
-		if matches := re.FindStringSubmatch(seriesParent); len(matches) > 1 {
+		ore := regexp.MustCompile(`#([\d.]+)`)
+		if matches := ore.FindStringSubmatch(seriesParent); len(matches) > 1 {
 			book.SeriesPosition = matches[1]
 		}
 

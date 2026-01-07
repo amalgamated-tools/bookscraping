@@ -1,4 +1,4 @@
-package bookscraping
+package goodreads
 
 // // GetQuotes fetches quotes for a book
 // func (c *Client) GetQuotes(bookID string, page int) ([]Quote, error) {

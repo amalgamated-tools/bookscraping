@@ -1,4 +1,4 @@
-package bookscraping
+package goodreads
 
 // // GetAuthor fetches and parses an author by their ID
 // func (c *Client) GetAuthor(authorID string) (*Author, error) {
