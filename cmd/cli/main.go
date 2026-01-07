@@ -8,7 +8,19 @@ import (
 )
 
 func main() {
-	client := booklore.NewClient("https://bl.veverka.net", "dev", "devdevdev")
+	bookloreServer := os.Getenv("BOOKLORE_SERVER")
+	if bookloreServer == "" {
+		panic("BOOKLORE_SERVER environment variable is not set")
+	}
+	bookloreUsername := os.Getenv("BOOKLORE_USERNAME")
+	if bookloreUsername == "" {
+		panic("BOOKLORE_USERNAME environment variable is not set")
+	}
+	booklorePassword := os.Getenv("BOOKLORE_PASSWORD")
+	if booklorePassword == "" {
+		panic("BOOKLORE_PASSWORD environment variable is not set")
+	}
+	client := booklore.NewClient(bookloreServer, bookloreUsername, booklorePassword)
 	client.Login()
 	books, err := client.LoadAllBooks()
 	if err != nil {
