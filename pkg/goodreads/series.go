@@ -2,7 +2,6 @@ package bookscraping
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -13,23 +12,15 @@ func (c *Client) GetSeries(seriesID string) (*Series, error) {
 	url := fmt.Sprintf("%s/series/%s", c.baseURL, seriesID)
 	fmt.Println("Fetching series from URL:", url)
 
-	// resp, err := c.httpClient.Get(url)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("fetching series: %w", err)
-	// }
-	// defer resp.Body.Close()
-
-	// doc, err := goquery.NewDocumentFromReader(resp.Body)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("parsing series HTML: %w", err)
-	// }
-	body, err := os.ReadFile("/Users/veverkap/Code/personal/bookscraping/examples/debug_series.html")
+	resp, err := c.httpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("reading debug file: %w", err)
+		return nil, fmt.Errorf("fetching series: %w", err)
 	}
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+	defer resp.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("parsing series HTML from debug file: %w", err)
+		return nil, fmt.Errorf("parsing series HTML: %w", err)
 	}
 
 	return c.parseSeries(doc, url)
