@@ -3,7 +3,6 @@ package booklore
 import (
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/buger/jsonparser"
 )
@@ -43,12 +42,6 @@ func (c *Client) LoadAllBooks() ([]Book, error) {
 func processBookJSON(value []byte) Book {
 	book := Book{}
 	book.ID, _ = jsonparser.GetInt(value, "id")
-	book.BookType, _ = jsonparser.GetString(value, "bookType")
-	book.LibraryId, _ = jsonparser.GetInt(value, "libraryId")
-	book.FileName, _ = jsonparser.GetString(value, "fileName")
-	book.FileSubPath, _ = jsonparser.GetString(value, "fileSubPath")
-	addedOnStr, _ := jsonparser.GetString(value, "addedOn")
-	book.AddedOn, _ = time.Parse(time.RFC3339, addedOnStr)
 
 	book.Title, _ = jsonparser.GetString(value, "metadata", "title")
 	book.Description, _ = jsonparser.GetString(value, "metadata", "description")
@@ -58,12 +51,10 @@ func processBookJSON(value []byte) Book {
 	book.ISBN13, _ = jsonparser.GetString(value, "metadata", "isbn13")
 	book.ISBN10, _ = jsonparser.GetString(value, "metadata", "isbn10")
 	book.ASIN, _ = jsonparser.GetString(value, "metadata", "asin")
-	book.Language, _ = jsonparser.GetString(value, "metadata", "language")
 	book.HardCoverID, _ = jsonparser.GetString(value, "metadata", "hardcoverId")
 	book.HardCoverBookID, _ = jsonparser.GetInt(value, "metadata", "hardcoverBookId")
 	book.GoodreadsId, _ = jsonparser.GetString(value, "metadata", "goodreadsId")
 	book.GoogleId, _ = jsonparser.GetString(value, "metadata", "googleId")
-	book.MetadataMatchScore, _ = jsonparser.GetFloat(value, "metadata", "metadataMatchScore")
 	authors := []string{}
 	jsonparser.ArrayEach(value, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		author, _ := jsonparser.ParseString(value)
@@ -75,25 +66,19 @@ func processBookJSON(value []byte) Book {
 }
 
 type Book struct {
-	ID                 int64     `json:"id"`
-	BookType           string    `json:"bookType"`
-	LibraryId          int64     `json:"libraryId"`
-	FileName           string    `json:"fileName"`
-	FileSubPath        string    `json:"fileSubPath"`
-	AddedOn            time.Time `json:"addedOn"`
-	Title              string    `json:"title"`
-	Description        string    `json:"description"`
-	SeriesName         string    `json:"seriesName"`
-	SeriesNumber       float64   `json:"seriesNumber"`
-	SeriesTotal        int64     `json:"seriesTotal"`
-	ISBN13             string    `json:"isbn13"`
-	ISBN10             string    `json:"isbn10"`
-	ASIN               string    `json:"asin"`
-	Language           string    `json:"language"`
-	HardCoverID        string    `json:"hardcoverId"`
-	HardCoverBookID    int64     `json:"hardcoverBookId"`
-	Authors            []string  `json:"authors"`
-	GoodreadsId        string    `json:"goodreadsId"`
-	GoogleId           string    `json:"googleId"`
-	MetadataMatchScore float64   `json:"metadataMatchScore"`
+	ID              int64    `json:"id"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description"`
+	SeriesID        int64    `json:"seriesId"`
+	SeriesName      string   `json:"seriesName"`
+	SeriesNumber    float64  `json:"seriesNumber"`
+	SeriesTotal     int64    `json:"seriesTotal"`
+	ISBN13          string   `json:"isbn13"`
+	ISBN10          string   `json:"isbn10"`
+	ASIN            string   `json:"asin"`
+	HardCoverID     string   `json:"hardcoverId"`
+	HardCoverBookID int64    `json:"hardcoverBookId"`
+	Authors         []string `json:"authors"`
+	GoodreadsId     string   `json:"goodreadsId"`
+	GoogleId        string   `json:"googleId"`
 }

@@ -21,18 +21,45 @@ func (q *Queries) CountBooks(ctx context.Context) (int64, error) {
 }
 
 const createBook = `-- name: CreateBook :one
-INSERT INTO books (book_id, data)
-VALUES (?, ?)
+INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data
 `
 
 type CreateBookParams struct {
-	BookID int64       `json:"book_id"`
-	Data   interface{} `json:"data"`
+	BookID          int64       `json:"book_id"`
+	Title           string      `json:"title"`
+	Description     string      `json:"description"`
+	SeriesName      *string     `json:"series_name"`
+	SeriesNumber    *int64      `json:"series_number"`
+	Asin            *string     `json:"asin"`
+	Isbn10          *string     `json:"isbn10"`
+	Isbn13          *string     `json:"isbn13"`
+	Language        *string     `json:"language"`
+	HardcoverID     *string     `json:"hardcover_id"`
+	HardcoverBookID *int64      `json:"hardcover_book_id"`
+	GoodreadsID     *string     `json:"goodreads_id"`
+	GoogleID        *string     `json:"google_id"`
+	Data            interface{} `json:"data"`
 }
 
 func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, error) {
-	row := q.db.QueryRowContext(ctx, createBook, arg.BookID, arg.Data)
+	row := q.db.QueryRowContext(ctx, createBook,
+		arg.BookID,
+		arg.Title,
+		arg.Description,
+		arg.SeriesName,
+		arg.SeriesNumber,
+		arg.Asin,
+		arg.Isbn10,
+		arg.Isbn13,
+		arg.Language,
+		arg.HardcoverID,
+		arg.HardcoverBookID,
+		arg.GoodreadsID,
+		arg.GoogleID,
+		arg.Data,
+	)
 	var i Book
 	err := row.Scan(
 		&i.ID,

@@ -15,6 +15,6 @@ LIMIT ? OFFSET ?;
 SELECT COUNT(*) AS count FROM books;
 
 -- name: CreateBook :one
-INSERT INTO books (book_id, data)
-VALUES (?, ?)
+INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;

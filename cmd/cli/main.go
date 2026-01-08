@@ -2,32 +2,23 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"log/slog"
-	"os"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
+	"github.com/amalgamated-tools/bookscraping/pkg/config"
 	_ "modernc.org/sqlite"
 )
 
 func main() {
-	bookloreServer := os.Getenv("BOOKLORE_SERVER")
-	if bookloreServer == "" {
-		panic("BOOKLORE_SERVER environment variable is not set")
-	}
-	bookloreUsername := os.Getenv("BOOKLORE_USERNAME")
-	if bookloreUsername == "" {
-		panic("BOOKLORE_USERNAME environment variable is not set")
-	}
-	booklorePassword := os.Getenv("BOOKLORE_PASSWORD")
-	if booklorePassword == "" {
-		panic("BOOKLORE_PASSWORD environment variable is not set")
-	}
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		panic("DATABASE_URL environment variable is not set")
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		panic(err)
 	}
 
-	client := booklore.NewClient(bookloreServer, bookloreUsername, booklorePassword)
+	// grClient := goodreads.NewClient()
+
+	client := booklore.NewClient(cfg.BookloreServer, cfg.BookloreUsername, cfg.BooklorePassword)
 	client.Login()
 
 	books, err := client.LoadAllBooks()
@@ -35,17 +26,36 @@ func main() {
 		panic(err)
 	}
 
-	series := make(map[string]map[float64]booklore.Book)
+	// series := make(map[string]map[float64]booklore.Book)
 	for _, book := range books {
-		slog.Info("Book loaded", "title", book.Title, "series", book.SeriesName, "number", book.SeriesNumber)
-		if book.SeriesName != "" {
-			if _, ok := series[book.SeriesName]; !ok {
-				series[book.SeriesName] = make(map[float64]booklore.Book)
-			}
-			series[book.SeriesName][book.SeriesNumber] = book
-		} else {
-			slog.Info("Book without series", "title", book.Title)
+		// check if we have a goodreads id
+		if book.GoodreadsId == "" {
+			slog.Info("No goodreads id for book", slog.String("title", book.Title), slog.Int64("id", book.ID))
+			slog.Info(fmt.Sprintf("https://booklore.veverka.net/book/%d", book.ID))
 		}
 	}
 
 }
+
+// if book.SeriesName != "" {
+// 	// slog.Info("Book loaded", "title", book.Title, "series", book.SeriesName, "number", book.SeriesNumber)
+// 	if _, ok := series[book.SeriesName]; !ok {
+// 		series[book.SeriesName] = make(map[float64]booklore.Book)
+// 	}
+// 	series[book.SeriesName][book.SeriesNumber] = book
+// } else {
+// 	slog.Info("Book without series", "title", book.Title)
+// 	if book.GoodreadsId != "" {
+// 		// slog.Info(" - has goodreads id", "id", book.GoodreadsId)
+// 		// grb, err := grClient.GetBook(book.GoodreadsId)
+// 		// if err != nil {
+// 		// 	slog.Error(" - error fetching from goodreads", "error", err)
+// 		// } else {
+// 		// 	if grb.SeriesName != "" {
+// 		// 		slog.Info(" - found series info", "series", grb.SeriesName)
+// 		// 	}
+// 		// }
+// 	} else {
+// 		slog.Info(" - no goodreads id")
+// 	}
+// }

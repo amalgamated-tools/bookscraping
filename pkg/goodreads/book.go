@@ -3,6 +3,7 @@ package goodreads
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -84,18 +85,17 @@ func (c *Client) parseBook(doc *goquery.Document, url string) (*Book, error) {
 	}
 
 	// Rating
-
 	ratingDiv := doc.Find("div[class*='RatingStatistics__rating']")
 	if ratingDiv.Length() > 1 {
-		log.Println("Multiple rating divs found, using the first one")
+		slog.Debug("Multiple rating divs found, using the first one")
 		ratingDiv = ratingDiv.First()
 	}
 	ratingStr := ratingDiv.Text()
 	if ratingStr == "" {
-		fmt.Println("Rating not found in primary selector, trying fallback")
+		slog.Debug("Rating not found in primary selector, trying fallback")
 		ratingStr = doc.Find(".RatingStatistics__rating").Text()
 	}
-	fmt.Println("Rating string:", ratingStr)
+
 	book.Rating = parseFloat(ratingStr)
 
 	// Description
@@ -176,9 +176,9 @@ func (c *Client) parseBook(doc *goquery.Document, url string) (*Book, error) {
 
 			series, err := c.GetSeries(book.SeriesID)
 			if err != nil {
-				log.Printf("Error fetching series info: %v", err)
+				slog.Error("Error fetching series info", "error", err)
 			} else {
-				log.Printf("Fetched series info: %s", series.Title)
+				slog.Info("Fetched series info", "title", series.Title)
 			}
 		}
 

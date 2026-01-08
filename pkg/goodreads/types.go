@@ -45,8 +45,10 @@ type Series struct {
 // }	URL         string `json:"url"`	Books       []Book `json:"books,omitempty"`	VoterCount  int    `json:"voter_count"`	BookCount   int    `json:"book_count"`	Description string `json:"description,omitempty"`	Title       string `json:"title"`	ID          string `json:"id"`
 //
 // type List struct {// List represents a Goodreads list}	TotalResults int `json:"total_results"`	Authors []Author `json:"authors"`	Books   []Book `json:"books"`
-//
-// type SearchResult struct {// SearchResult represents a search result}	Position string `json:"position"`	Book     Book   `json:"book"`
+type SearchResult struct {
+	Books []Book `json:"books,omitempty"`
+}
+
 //
 // type SeriesBook struct {// SeriesBook represents a book in a series}	URL         string      `json:"url"`	Books       []SeriesBook `json:"books,omitempty"`	BookCount   int         `json:"book_count"`	Description string      `json:"description,omitempty"`	Name        string      `json:"name"`	ID          string      `json:"id"`
 //
