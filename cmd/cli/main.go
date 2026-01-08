@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	_ "embed"
+	"log/slog"
 	"os"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
-	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
+	_ "modernc.org/sqlite"
 )
 
 func main() {
@@ -22,32 +22,30 @@ func main() {
 	if booklorePassword == "" {
 		panic("BOOKLORE_PASSWORD environment variable is not set")
 	}
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		panic("DATABASE_URL environment variable is not set")
+	}
+
 	client := booklore.NewClient(bookloreServer, bookloreUsername, booklorePassword)
 	client.Login()
+
 	books, err := client.LoadAllBooks()
 	if err != nil {
 		panic(err)
 	}
-	grClient := goodreads.NewClient()
+
 	series := make(map[string]map[float64]booklore.Book)
 	for _, book := range books {
-		if book.GoodreadsId != "" {
-			b, err := grClient.GetBook(book.GoodreadsId)
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf("Fetched book info from Goodreads: %s\n", b.Title)
-		}
+		slog.Info("Book loaded", "title", book.Title, "series", book.SeriesName, "number", book.SeriesNumber)
 		if book.SeriesName != "" {
 			if _, ok := series[book.SeriesName]; !ok {
 				series[book.SeriesName] = make(map[float64]booklore.Book)
 			}
 			series[book.SeriesName][book.SeriesNumber] = book
+		} else {
+			slog.Info("Book without series", "title", book.Title)
 		}
 	}
-	jsonBooks, err := json.MarshalIndent(books, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	os.WriteFile("books.json", jsonBooks, 0o644)
+
 }
