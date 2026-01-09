@@ -20,6 +20,17 @@ func (q *Queries) CountBooks(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countSeries = `-- name: CountSeries :one
+SELECT COUNT(*) AS count FROM series
+`
+
+func (q *Queries) CountSeries(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSeries)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBook = `-- name: CreateBook :one
 INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -81,6 +92,40 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 	return i, err
 }
 
+const createSeries = `-- name: CreateSeries :one
+INSERT INTO series (series_id, name, description, url, data)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, series_id, name, description, url, data
+`
+
+type CreateSeriesParams struct {
+	SeriesID    int64       `json:"series_id"`
+	Name        string      `json:"name"`
+	Description *string     `json:"description"`
+	Url         *string     `json:"url"`
+	Data        interface{} `json:"data"`
+}
+
+func (q *Queries) CreateSeries(ctx context.Context, arg CreateSeriesParams) (Series, error) {
+	row := q.db.QueryRowContext(ctx, createSeries,
+		arg.SeriesID,
+		arg.Name,
+		arg.Description,
+		arg.Url,
+		arg.Data,
+	)
+	var i Series
+	err := row.Scan(
+		&i.ID,
+		&i.SeriesID,
+		&i.Name,
+		&i.Description,
+		&i.Url,
+		&i.Data,
+	)
+	return i, err
+}
+
 const getBook = `-- name: GetBook :one
 SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
 WHERE id = ? LIMIT 1
@@ -137,6 +182,44 @@ func (q *Queries) GetBookByBookID(ctx context.Context, bookID int64) (Book, erro
 	return i, err
 }
 
+const getSeries = `-- name: GetSeries :one
+SELECT id, series_id, name, description, url, data FROM series
+WHERE id = ? LIMIT 1
+`
+
+func (q *Queries) GetSeries(ctx context.Context, id int64) (Series, error) {
+	row := q.db.QueryRowContext(ctx, getSeries, id)
+	var i Series
+	err := row.Scan(
+		&i.ID,
+		&i.SeriesID,
+		&i.Name,
+		&i.Description,
+		&i.Url,
+		&i.Data,
+	)
+	return i, err
+}
+
+const getSeriesBySeriesID = `-- name: GetSeriesBySeriesID :one
+SELECT id, series_id, name, description, url, data FROM series
+WHERE series_id = ? LIMIT 1
+`
+
+func (q *Queries) GetSeriesBySeriesID(ctx context.Context, seriesID int64) (Series, error) {
+	row := q.db.QueryRowContext(ctx, getSeriesBySeriesID, seriesID)
+	var i Series
+	err := row.Scan(
+		&i.ID,
+		&i.SeriesID,
+		&i.Name,
+		&i.Description,
+		&i.Url,
+		&i.Data,
+	)
+	return i, err
+}
+
 const listBooks = `-- name: ListBooks :many
 SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
 ORDER BY id ASC
@@ -172,6 +255,47 @@ func (q *Queries) ListBooks(ctx context.Context, arg ListBooksParams) ([]Book, e
 			&i.HardcoverBookID,
 			&i.GoodreadsID,
 			&i.GoogleID,
+			&i.Data,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSeries = `-- name: ListSeries :many
+SELECT id, series_id, name, description, url, data FROM series
+ORDER BY id ASC
+LIMIT ? OFFSET ?
+`
+
+type ListSeriesParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) ListSeries(ctx context.Context, arg ListSeriesParams) ([]Series, error) {
+	rows, err := q.db.QueryContext(ctx, listSeries, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Series
+	for rows.Next() {
+		var i Series
+		if err := rows.Scan(
+			&i.ID,
+			&i.SeriesID,
+			&i.Name,
+			&i.Description,
+			&i.Url,
 			&i.Data,
 		); err != nil {
 			return nil, err

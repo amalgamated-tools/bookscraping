@@ -14,7 +14,7 @@ func (c *Client) GetSeries(seriesID string) (*Series, error) {
 
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("fetching series: %w", err)
+		return nil, fmt.Errorf("fetching series page: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -50,17 +50,8 @@ func (c *Client) parseSeries(doc *goquery.Document, url string) (*Series, error)
 		bookURL, _ := s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > a").Attr("href")
 		author := strings.TrimSpace(s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > div.u-paddingBottomTiny > span[itemprop = 'author'] > span[itemprop = 'name'] > a").Text())
 		authorURL, _ := s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > div.u-paddingBottomTiny > span[itemprop = 'author'] > span[itemprop = 'name'] > a").Attr("href")
-		rating := strings.TrimSpace(s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > div.communityRating > span").Text())
+		// rating := strings.TrimSpace(s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > div.communityRating > span").Text())
 
-		fmt.Printf("Book %d:\n", i+1)
-		fmt.Printf("  Book Number: %s\n", bookNumber)
-		fmt.Printf("  Cover: %s\n", cover)
-		fmt.Printf("  Title: %s\n", title)
-		fmt.Printf("  Book URL: %s\n", bookURL)
-		fmt.Printf("  Author: %s\n", author)
-		fmt.Printf("  Author URL: %s\n", authorURL)
-		fmt.Printf("  Rating: %s\n", rating)
-		fmt.Println()
 		book := SeriesBook{
 			BookNumber: bookNumber,
 			Book: Book{

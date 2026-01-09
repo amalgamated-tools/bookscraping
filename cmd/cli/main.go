@@ -7,6 +7,7 @@ import (
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/config"
+	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
 	_ "modernc.org/sqlite"
 )
 
@@ -16,7 +17,7 @@ func main() {
 		panic(err)
 	}
 
-	// grClient := goodreads.NewClient()
+	grClient := goodreads.NewClient()
 
 	client := booklore.NewClient(cfg.BookloreServer, cfg.BookloreUsername, cfg.BooklorePassword)
 	client.Login()
@@ -26,15 +27,33 @@ func main() {
 		panic(err)
 	}
 
-	// series := make(map[string]map[float64]booklore.Book)
+	series := make(map[string]string)
+
 	for _, book := range books {
-		// check if we have a goodreads id
-		if book.GoodreadsId == "" {
-			slog.Info("No goodreads id for book", slog.String("title", book.Title), slog.Int64("id", book.ID))
-			slog.Info(fmt.Sprintf("https://booklore.veverka.net/book/%d", book.ID))
+		// does this book have series info?
+		if book.SeriesName != "" {
+			slog.Info(
+				"Book with series",
+				slog.String("title", book.Title),
+				slog.String("goodreads_id", book.GoodreadsId),
+				slog.String("series_name", book.SeriesName),
+				slog.Float64("series_number", book.SeriesNumber),
+				slog.String("url", fmt.Sprintf("https://booklore.veverka.net/book/%d", book.ID)),
+			)
+			series[book.SeriesName] = book.GoodreadsId
 		}
 	}
-
+	slog.Info("Series found", "count", len(series))
+	for name, grID := range series {
+		slog.Info(" Series", "name", name, "goodreads_id", grID)
+		grb, err := grClient.GetBook(grID)
+		if err != nil {
+			slog.Error(" - error fetching from goodreads", "error", err)
+		} else {
+			slog.Info(" - found series info", slog.Any("series", grb))
+			break
+		}
+	}
 }
 
 // if book.SeriesName != "" {

@@ -10,10 +10,15 @@ import (
 
 type Querier interface {
 	CountBooks(ctx context.Context) (int64, error)
+	CountSeries(ctx context.Context) (int64, error)
 	CreateBook(ctx context.Context, arg CreateBookParams) (Book, error)
+	CreateSeries(ctx context.Context, arg CreateSeriesParams) (Series, error)
 	GetBook(ctx context.Context, id int64) (Book, error)
 	GetBookByBookID(ctx context.Context, bookID int64) (Book, error)
+	GetSeries(ctx context.Context, id int64) (Series, error)
+	GetSeriesBySeriesID(ctx context.Context, seriesID int64) (Series, error)
 	ListBooks(ctx context.Context, arg ListBooksParams) ([]Book, error)
+	ListSeries(ctx context.Context, arg ListSeriesParams) ([]Series, error)
 }
 
 var _ Querier = (*Queries)(nil)
