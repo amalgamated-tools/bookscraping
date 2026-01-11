@@ -3,7 +3,7 @@ package booklore
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -66,7 +66,7 @@ func (c *Client) RefreshToken() error {
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
+	body, _ := io.ReadAll(res.Body)
 
 	var token Token
 	err := json.Unmarshal(body, &token)
@@ -125,7 +125,7 @@ func (c *Client) performLogin() error {
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
+	body, _ := io.ReadAll(res.Body)
 	fmt.Println(string(body))
 
 	var token Token
