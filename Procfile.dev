@@ -1,2 +1,2 @@
-web: go run ./cmd/server
+web: air
 frontend: cd frontend && pnpm run dev
