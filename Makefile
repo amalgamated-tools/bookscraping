@@ -17,6 +17,10 @@ build-frontend:
 build-server: build-frontend
 	go build -o bin/bookscraping-server ./cmd/server
 
+# Run both frontend and backend in development (requires foreman/overmind/goreman)
+dev:
+	overmind start -f Procfile.dev || goreman -f Procfile.dev start || foreman start -f Procfile.dev
+
 # Development mode - run frontend dev server with proxy to Go backend
 dev-frontend:
 	cd frontend && pnpm run dev

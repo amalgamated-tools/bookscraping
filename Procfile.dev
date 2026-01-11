@@ -1,0 +1,2 @@
+web: go run ./cmd/server
+frontend: cd frontend && pnpm run dev
