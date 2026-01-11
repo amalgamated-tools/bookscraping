@@ -1,13 +1,36 @@
 <script lang="ts">
+	import { browser } from "$app/environment";
+
 	let { children } = $props();
+	let isConfigured = $state(false);
+
+	function checkConfiguration() {
+		if (browser) {
+			const serverUrl = localStorage.getItem("serverUrl");
+			const username = localStorage.getItem("username");
+			const password = localStorage.getItem("password");
+			isConfigured = !!(serverUrl && username && password);
+		}
+	}
+
+	$effect(() => {
+		checkConfiguration();
+		
+		if (browser) {
+			window.addEventListener('storage', checkConfiguration);
+			return () => window.removeEventListener('storage', checkConfiguration);
+		}
+	});
 </script>
 
 <div class="app">
 	<header>
 		<nav>
-			<a href="/">Home</a>
-			<a href="/books">Books</a>
-			<a href="/series">Series</a>
+			{#if isConfigured}
+				<a href="/">Home</a>
+				<a href="/books">Books</a>
+				<a href="/series">Series</a>
+			{/if}
 			<a href="/config">Config</a>
 		</nav>
 	</header>

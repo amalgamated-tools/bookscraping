@@ -44,7 +44,12 @@
 </svelte:head>
 
 <div class="books-page">
-	<h1>📚 Books</h1>
+	<div class="header">
+		<h1>📚 Books</h1>
+		<button onclick={loadBooks} disabled={loading} class="refresh-btn">
+			{loading ? "Refreshing..." : "🔄 Refresh"}
+		</button>
+	</div>
 
 	{#if loading}
 		<div class="loading">Loading books...</div>
@@ -88,8 +93,37 @@
 </div>
 
 <style>
-	.books-page h1 {
+	.header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		margin-bottom: 1rem;
+	}
+
+	.books-page h1 {
+		margin: 0;
+	}
+
+	.refresh-btn {
+		padding: 0.5rem 1rem;
+		border: 2px solid #2c3e50;
+		background: white;
+		color: #2c3e50;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 0.9rem;
+		font-weight: 500;
+	}
+
+	.refresh-btn:hover:not(:disabled) {
+		background: #2c3e50;
+		color: white;
+	}
+
+	.refresh-btn:disabled {
+		border-color: #ccc;
+		color: #ccc;
+		cursor: not-allowed;
 	}
 
 	.count {

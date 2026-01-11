@@ -1,5 +1,6 @@
 <script lang="ts">
     import { api, type Book } from "$lib/api";
+    import { browser } from "$app/environment";
     import { onMount } from "svelte";
 
     let bookCount = $state(0);
@@ -7,8 +8,21 @@
     let recentBooks = $state<Book[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
+    let isConfigured = $state(false);
 
     onMount(async () => {
+        if (browser) {
+            const serverUrl = localStorage.getItem("serverUrl");
+            const username = localStorage.getItem("username");
+            const password = localStorage.getItem("password");
+            isConfigured = !!(serverUrl && username && password);
+        }
+
+        if (!isConfigured) {
+            loading = false;
+            return;
+        }
+
         try {
             console.log("Loading home page data...");
             const [booksRes, seriesRes] = await Promise.all([
@@ -34,7 +48,12 @@
     <h1>📚 BookScraping</h1>
     <p class="subtitle">A Goodreads scraping and book management application</p>
 
-    {#if loading}
+    {#if !isConfigured}
+        <div class="config-notice">
+            <h2>⚙️ Configuration Required</h2>
+            <p>Please <a href="/config">configure your server settings</a> to get started.</p>
+        </div>
+    {:else if loading}
         <div class="loading">Loading...</div>
     {:else if error}
         <div class="error">
@@ -110,6 +129,35 @@
         border-radius: 8px;
         padding: 1rem;
         color: #c00;
+    }
+
+    .config-notice {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 2rem;
+        margin: 2rem auto;
+        max-width: 500px;
+    }
+
+    .config-notice h2 {
+        margin-top: 0;
+        color: #856404;
+    }
+
+    .config-notice p {
+        margin-bottom: 0;
+        color: #856404;
+    }
+
+    .config-notice a {
+        color: #856404;
+        font-weight: 600;
+        text-decoration: underline;
+    }
+
+    .config-notice a:hover {
+        color: #533f03;
     }
 
     .hint {
