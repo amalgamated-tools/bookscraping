@@ -1,3 +1,18 @@
 .env
 .booklore_credentials.json
 cmd/cli/books.json
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+
+# Go build output
+bin/
+server
+
+# Database
+*.db
+
+# IDE
+.idea/
