@@ -1,114 +1,104 @@
 package goodreads
 
-import (
-	"fmt"
-	"log"
-	"net/url"
-	"regexp"
-	"strings"
+// // Search performs a search on Goodreads
+// func (c *Client) Search(query string, page int) (*SearchResult, error) {
+// 	searchURL := fmt.Sprintf("%s/search?q=%s&page=%d", c.baseURL, url.QueryEscape(query), page)
+// 	resp, err := c.httpClient.Get(searchURL)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("fetching book: %w", err)
+// 	}
+// 	defer resp.Body.Close()
 
-	"github.com/PuerkitoBio/goquery"
-)
+// 	doc, err := goquery.NewDocumentFromReader(resp.Body)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-// Search performs a search on Goodreads
-func (c *Client) Search(query string, page int) (*SearchResult, error) {
-	searchURL := fmt.Sprintf("%s/search?q=%s&page=%d", c.baseURL, url.QueryEscape(query), page)
-	resp, err := c.httpClient.Get(searchURL)
-	if err != nil {
-		return nil, fmt.Errorf("fetching book: %w", err)
-	}
-	defer resp.Body.Close()
+// 	result := &SearchResult{}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	// Parse book results
+// 	doc.Find("tr[itemtype='http://schema.org/Book']").Each(func(i int, s *goquery.Selection) {
+// 		book := Book{}
 
-	result := &SearchResult{}
+// 		// Title and URL
+// 		titleLink := s.Find("a.bookTitle")
+// 		book.Title = strings.TrimSpace(titleLink.Text())
+// 		bookURL, _ := titleLink.Attr("href")
+// 		if bookURL != "" {
+// 			book.BookURL = c.baseURL + bookURL
 
-	// Parse book results
-	doc.Find("tr[itemtype='http://schema.org/Book']").Each(func(i int, s *goquery.Selection) {
-		book := Book{}
+// 			// Extract book ID
+// 			re := regexp.MustCompile(`/book/show/(\d+)`)
+// 			if matches := re.FindStringSubmatch(bookURL); len(matches) > 1 {
+// 				book.BookID = matches[1]
+// 			}
+// 		}
 
-		// Title and URL
-		titleLink := s.Find("a.bookTitle")
-		book.Title = strings.TrimSpace(titleLink.Text())
-		bookURL, _ := titleLink.Attr("href")
-		if bookURL != "" {
-			book.URL = c.baseURL + bookURL
+// 		// Author
+// 		authorLink := s.Find("a.authorName")
+// 		if authorLink.Length() > 0 {
+// 			authorName := strings.TrimSpace(authorLink.Text())
+// 			authorURL, _ := authorLink.Attr("href")
 
-			// Extract book ID
-			re := regexp.MustCompile(`/book/show/(\d+)`)
-			if matches := re.FindStringSubmatch(bookURL); len(matches) > 1 {
-				book.ID = matches[1]
-			}
-		}
+// 			author := Author{
+// 				Name: authorName,
+// 			}
 
-		// Author
-		authorLink := s.Find("a.authorName")
-		if authorLink.Length() > 0 {
-			authorName := strings.TrimSpace(authorLink.Text())
-			authorURL, _ := authorLink.Attr("href")
+// 			if authorURL != "" {
+// 				author.URL = c.baseURL + authorURL
 
-			author := Author{
-				Name: authorName,
-			}
+// 				// Extract author ID
+// 				re := regexp.MustCompile(`/author/show/(\d+)`)
+// 				if matches := re.FindStringSubmatch(authorURL); len(matches) > 1 {
+// 					author.ID = matches[1]
+// 				}
+// 			}
 
-			if authorURL != "" {
-				author.URL = c.baseURL + authorURL
+// 			book.Authors = append(book.Authors, author)
+// 		}
 
-				// Extract author ID
-				re := regexp.MustCompile(`/author/show/(\d+)`)
-				if matches := re.FindStringSubmatch(authorURL); len(matches) > 1 {
-					author.ID = matches[1]
-				}
-			}
+// 		// Cover image
+// 		imgSrc, _ := s.Find("img.bookCover").Attr("src")
+// 		book.ImageURL = imgSrc
 
-			book.Authors = append(book.Authors, author)
-		}
+// 		// 		// Rating
+// 		// 		ratingStr := s.Find("span.minirating").Text()
+// 		// 		book.Rating = parseFloat(ratingStr)
 
-		// Cover image
-		imgSrc, _ := s.Find("img.bookCover").Attr("src")
-		book.CoverImageURL = imgSrc
+// 		// 		// Extract rating and review counts
+// 		// 		re := regexp.MustCompile(`([\d,]+)\s+ratings`)
+// 		// 		if matches := re.FindStringSubmatch(ratingStr); len(matches) > 1 {
+// 		// 			book.RatingCount = parseCount(matches[1])
+// 		// 		}
 
-		// 		// Rating
-		// 		ratingStr := s.Find("span.minirating").Text()
-		// 		book.Rating = parseFloat(ratingStr)
+// 		// 		re = regexp.MustCompile(`([\d,]+)\s+reviews`)
+// 		// 		if matches := re.FindStringSubmatch(ratingStr); len(matches) > 1 {
+// 		// 			book.ReviewCount = parseCount(matches[1])
+// 		// 		}
 
-		// 		// Extract rating and review counts
-		// 		re := regexp.MustCompile(`([\d,]+)\s+ratings`)
-		// 		if matches := re.FindStringSubmatch(ratingStr); len(matches) > 1 {
-		// 			book.RatingCount = parseCount(matches[1])
-		// 		}
+// 		// 		// Published year
+// 		// 		pubText := s.Find("span.greyText.smallText").Text()
+// 		// 		re = regexp.MustCompile(`published\s+(\d{4})`)
+// 		// 		if matches := re.FindStringSubmatch(pubText); len(matches) > 1 {
+// 		// 			book.PublishedYear = matches[1]
+// 		// 		}
 
-		// 		re = regexp.MustCompile(`([\d,]+)\s+reviews`)
-		// 		if matches := re.FindStringSubmatch(ratingStr); len(matches) > 1 {
-		// 			book.ReviewCount = parseCount(matches[1])
-		// 		}
+// 		if book.Title != "" {
+// 			result.Books = append(result.Books, book)
+// 		}
+// 	})
 
-		// 		// Published year
-		// 		pubText := s.Find("span.greyText.smallText").Text()
-		// 		re = regexp.MustCompile(`published\s+(\d{4})`)
-		// 		if matches := re.FindStringSubmatch(pubText); len(matches) > 1 {
-		// 			book.PublishedYear = matches[1]
-		// 		}
+// 	// 	result.TotalResults = len(result.Books)
 
-		if book.Title != "" {
-			result.Books = append(result.Books, book)
-		}
-	})
+// 	return result, nil
+// }
 
-	// 	result.TotalResults = len(result.Books)
+// // SearchBooks is a convenience method for searching only books
 
-	return result, nil
-}
-
-// SearchBooks is a convenience method for searching only books
-
-func (c *Client) SearchBooks(query string) ([]Book, error) {
-	result, err := c.Search(query, 1)
-	if err != nil {
-		return nil, err
-	}
-	return result.Books, nil
-}
+// func (c *Client) SearchBooks(query string) ([]Book, error) {
+// 	result, err := c.Search(query, 1)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return result.Books, nil
+// }

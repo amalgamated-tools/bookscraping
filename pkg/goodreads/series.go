@@ -2,8 +2,7 @@ package goodreads
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
+	"log/slog"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -23,52 +22,47 @@ func (c *Client) GetSeries(seriesID string) (*Series, error) {
 		return nil, fmt.Errorf("parsing series HTML: %w", err)
 	}
 
-	return c.parseSeries(doc, url)
-}
-
-// parseSeries extracts series information from a goquery document
-func (c *Client) parseSeries(doc *goquery.Document, url string) (*Series, error) {
-	series := &Series{
-		URL: url,
-	}
-	// Extract series ID from URL
-	re := regexp.MustCompile(`/series/(\d+)`)
-	if matches := re.FindStringSubmatch(url); len(matches) > 1 {
-		series.ID = matches[1]
-	}
-	// Series name
-	// series.Name = strings.TrimSpace(doc.Find("h1").First().Text())
-	series.Title = strings.TrimSpace(doc.Find("div.responsiveSeriesHeader__title > h1").Text()) // Series name	// Description
-	series.Works = strings.TrimSpace(doc.Find("div.responsiveSeriesHeader__subtitle.u-paddingBottomSmall").Text())
-
-	series.Description = strings.TrimSpace(doc.Find("div.responsiveSeriesDescription > div.expandableHtml > span").Text())
-
-	doc.Find("div.gr-col-md-8 > div.gr-boxBottomDivider > div > div.listWithDividers > div.listWithDividers__item").Each(func(i int, s *goquery.Selection) {
-		bookNumber := strings.TrimSpace(s.Find("h3.gr-h3.gr-h3--noBottomMargin").Text())
-		cover, _ := s.Find("div.responsiveBook > div.objectLockupContent > div.objectLockupContent__media > div.responsiveBook__media > a > img").Attr("src")
-		title := strings.TrimSpace(s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > a > span[itemprop = 'name']").Text())
-		bookURL, _ := s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > a").Attr("href")
-		author := strings.TrimSpace(s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > div.u-paddingBottomTiny > span[itemprop = 'author'] > span[itemprop = 'name'] > a").Text())
-		authorURL, _ := s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > div.u-paddingBottomTiny > span[itemprop = 'author'] > span[itemprop = 'name'] > a").Attr("href")
-		// rating := strings.TrimSpace(s.Find("div.responsiveBook > div.objectLockupContent > div.u-paddingBottomXSmall > div.communityRating > span").Text())
-
-		book := SeriesBook{
-			BookNumber: bookNumber,
-			Book: Book{
-				Title:         title,
-				URL:           bookURL,
-				CoverImageURL: cover,
-			},
-			// 	ID:         id,
-			// 	Cover:      cover,
-			// 	Title:      title,
-			// 	BookURL:    bookURL,
-			// 	Author:     author,
-			// 	AuthorURL:  authorURL,
-			// 	Rating:     rating,
+	doc.Find("div[data-react-class='ReactComponents.SeriesList']").Each(func(i int, s *goquery.Selection) {
+		fmt.Println("Found React series div", i)
+		dataProps, exists := s.Attr("data-react-props")
+		slog.Debug("dataProps", slog.String("dataProps", dataProps), slog.Bool("exists", exists))
+		b, err := ParseSeriesData([]byte(dataProps))
+		if err != nil {
+			slog.Error("Error parsing series data", slog.Int("index", i), slog.String("error", err.Error()))
+			return
 		}
-		book.Authors = append(book.Authors, Author{Name: author, URL: authorURL})
-		series.Books = append(series.Books, book)
+		for _, bb := range b {
+			slog.Debug("Parsed book in series", slog.Int("index", i), slog.String("bookTitle", bb.Book.Title), slog.String("seriesPosition", bb.SeriesPosition))
+		}
 	})
-	return series, nil
+
+	return nil, nil
+	// return c.parseReactSeries(doc, url)
 }
+
+// // parseReactSeries extracts series information from a React-based Goodreads series page
+// func (c *Client) parseReactSeries(doc *goquery.Document, url string) (*Series, error) {
+// 	series := &Series{
+// 		URL: url,
+// 	}
+// 	blah := make(map[string]SeriesBookk)
+// 	doc.Find("div[data-react-class='ReactComponents.SeriesList']").Each(func(i int, s *goquery.Selection) {
+// 		slog.Debug("Found React series div", slog.Int("index", i))
+// 		dataProps, exists := s.Attr("data-react-props")
+// 		if exists {
+// 			slog.Debug("Found data-react-props", slog.Int("index", i), slog.String("dataProps", dataProps))
+// 			booksWithPosition, err := ParseSeriesData([]byte(dataProps))
+// 			if err != nil {
+// 				slog.Error("Error parsing series data", slog.Int("index", i), slog.String("error", err.Error()))
+// 				return
+// 			}
+// 			for _, bwp := range booksWithPosition {
+// 				blah[bwp.SeriesPosition] = bwp.Book
+// 			}
+// 		} else {
+// 			slog.Warn("No data-react-props found", slog.Int("index", i))
+// 		}
+// 	})
+
+// 	return series, nil
+// }
