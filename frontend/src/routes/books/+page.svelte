@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { api, type Book } from '$lib/api';
-	import { onMount } from 'svelte';
+	import { api, type Book } from "$lib/api";
+	import { onMount } from "svelte";
 
 	let books = $state<Book[]>([]);
 	let loading = $state(true);
@@ -13,10 +13,10 @@
 		loading = true;
 		try {
 			const response = await api.getBooks(page, perPage);
-			books = response.data;
+			books = response.data ?? [];
 			total = response.total;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load books';
+			error = e instanceof Error ? e.message : "Failed to load books";
 		} finally {
 			loading = false;
 		}
@@ -58,7 +58,9 @@
 				<a href="/books/{book.id}" class="book-card">
 					<h3>{book.title}</h3>
 					{#if book.series_name}
-						<p class="series">{book.series_name} #{book.series_number}</p>
+						<p class="series">
+							{book.series_name} #{book.series_number}
+						</p>
 					{/if}
 					<div class="meta">
 						{#if book.isbn13}
@@ -78,7 +80,9 @@
 		<div class="pagination">
 			<button onclick={prevPage} disabled={page <= 1}>← Previous</button>
 			<span>Page {page} of {Math.ceil(total / perPage)}</span>
-			<button onclick={nextPage} disabled={page * perPage >= total}>Next →</button>
+			<button onclick={nextPage} disabled={page * perPage >= total}
+				>Next →</button
+			>
 		</div>
 	{/if}
 </div>
@@ -121,7 +125,9 @@
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		text-decoration: none;
 		color: inherit;
-		transition: transform 0.2s, box-shadow 0.2s;
+		transition:
+			transform 0.2s,
+			box-shadow 0.2s;
 	}
 
 	.book-card:hover {

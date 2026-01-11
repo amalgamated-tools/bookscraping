@@ -8,7 +8,7 @@
 			<a href="/">Home</a>
 			<a href="/books">Books</a>
 			<a href="/series">Series</a>
-			<a href="/search">Search</a>
+			<a href="/config">Config</a>
 		</nav>
 	</header>
 
@@ -24,8 +24,8 @@
 <style>
 	:global(body) {
 		margin: 0;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
-			'Open Sans', 'Helvetica Neue', sans-serif;
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+			Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
 		background-color: #f5f5f5;
 		color: #333;
 	}
