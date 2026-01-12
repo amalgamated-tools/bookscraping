@@ -33,6 +33,12 @@ export interface PaginatedResponse<T> {
     per_page: number;
 }
 
+export interface BookloreAuthResponse {
+    isDefaultPassword: string;
+    accessToken: string;
+    refreshToken: string;
+}
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE}${endpoint}`, {
         headers: {
@@ -83,5 +89,22 @@ export const api = {
 
     async getGoodreadsSeries(id: string): Promise<Series> {
         return fetchApi<Series>(`/goodreads/series/${id}`);
+    },
+
+    // Booklore authentication
+    async bookloreLogin(serverUrl: string, username: string, password: string): Promise<BookloreAuthResponse> {
+        const response = await fetch(`${serverUrl}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Booklore login failed: ${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
     }
 };
