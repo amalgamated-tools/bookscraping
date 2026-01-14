@@ -42,7 +42,7 @@ type CreateBookParams struct {
 	Title           string      `json:"title"`
 	Description     string      `json:"description"`
 	SeriesName      *string     `json:"series_name"`
-	SeriesNumber    *int64      `json:"series_number"`
+	SeriesNumber    *float64    `json:"series_number"`
 	Asin            *string     `json:"asin"`
 	Isbn10          *string     `json:"isbn10"`
 	Isbn13          *string     `json:"isbn13"`
@@ -336,7 +336,7 @@ type UpsertBookParams struct {
 	Title           string      `json:"title"`
 	Description     string      `json:"description"`
 	SeriesName      *string     `json:"series_name"`
-	SeriesNumber    *int64      `json:"series_number"`
+	SeriesNumber    *float64    `json:"series_number"`
 	Asin            *string     `json:"asin"`
 	Isbn10          *string     `json:"isbn10"`
 	Isbn13          *string     `json:"isbn13"`
