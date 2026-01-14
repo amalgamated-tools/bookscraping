@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
+	import { api } from "$lib/api";
 
 	let serverUrl = $state("");
 	let username = $state("");
 	let password = $state("");
 	let success = $state(false);
+	let testing = $state(false);
+	let testMessage = $state("");
+	let testSuccess = $state(false);
 
 	$effect(() => {
 		if (browser) {
@@ -14,13 +18,50 @@
 		}
 	});
 
-	function handleSave(e: Event) {
+	async function handleTest() {
+		if (!serverUrl || !username || !password) {
+			testMessage = "Please fill in all fields first";
+			testSuccess = false;
+			return;
+		}
+
+		testing = true;
+		testMessage = "";
+		
+		try {
+			const response = await api.bookloreLogin(serverUrl, username, password);
+			if (browser) {
+				localStorage.setItem("accessToken", response.accessToken);
+				localStorage.setItem("refreshToken", response.refreshToken);
+			}
+			testSuccess = true;
+			testMessage = "Connection successful!";
+		} catch (e) {
+			testSuccess = false;
+			testMessage = e instanceof Error ? e.message : "Connection failed";
+		} finally {
+			testing = false;
+		}
+	}
+
+	async function handleSave(e: Event) {
 		e.preventDefault();
 		
 		if (browser) {
 			localStorage.setItem("serverUrl", serverUrl);
 			localStorage.setItem("username", username);
 			localStorage.setItem("password", password);
+
+			// Try to login and get tokens
+			try {
+				const response = await api.bookloreLogin(serverUrl, username, password);
+				localStorage.setItem("accessToken", response.accessToken);
+				localStorage.setItem("refreshToken", response.refreshToken);
+			} catch (e) {
+				console.error("Failed to login during save:", e);
+				// We still saved the credentials, so we consider it a partial success
+				// potentially we could show a warning here
+			}
 			
 			success = true;
 			setTimeout(() => {
@@ -73,10 +114,21 @@
 			/>
 		</div>
 
-		<button type="submit">Save Configuration</button>
+		<div class="button-group">
+			<button type="button" class="test-btn" onclick={handleTest} disabled={testing}>
+				{testing ? "Testing..." : "Test Connection"}
+			</button>
+			<button type="submit">Save Configuration</button>
+		</div>
+
+		{#if testMessage}
+			<div class="message {testSuccess ? 'success' : 'error'}">
+				{testMessage}
+			</div>
+		{/if}
 
 		{#if success}
-			<div class="success">Configuration saved successfully!</div>
+			<div class="message success">Configuration saved successfully!</div>
 		{/if}
 	</form>
 </div>
@@ -119,8 +171,14 @@
 		border-color: #2c3e50;
 	}
 
+	.button-group {
+		display: flex;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
 	button {
-		width: 100%;
+		flex: 1;
 		padding: 0.75rem 1.5rem;
 		background: #2c3e50;
 		color: white;
@@ -135,13 +193,37 @@
 		background: #34495e;
 	}
 
-	.success {
+	button:disabled {
+		background: #95a5a6;
+		cursor: not-allowed;
+	}
+
+	.test-btn {
+		background: #fff;
+		color: #2c3e50;
+		border: 2px solid #2c3e50;
+	}
+
+	.test-btn:hover {
+		background: #f8f9fa;
+	}
+
+	.message {
 		margin-top: 1rem;
 		padding: 0.75rem;
+		border-radius: 4px;
+		text-align: center;
+	}
+
+	.success {
 		background-color: #d4edda;
 		border: 1px solid #c3e6cb;
-		border-radius: 4px;
 		color: #155724;
-		text-align: center;
+	}
+
+	.error {
+		background-color: #f8d7da;
+		border: 1px solid #f5c6cb;
+		color: #721c24;
 	}
 </style>

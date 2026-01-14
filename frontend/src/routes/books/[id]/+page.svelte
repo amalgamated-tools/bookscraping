@@ -8,7 +8,7 @@
 	let error = $state<string | null>(null);
 
 	onMount(async () => {
-		const id = parseInt(page.params.id);
+		const id = parseInt(page.params.id ?? '0');
 		try {
 			book = await api.getBook(id);
 		} catch (e) {

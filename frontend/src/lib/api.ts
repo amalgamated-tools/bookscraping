@@ -8,6 +8,7 @@ export interface Book {
     description: string;
     series_name?: string;
     series_number?: number;
+    series_id?: number;
     asin?: string;
     isbn10?: string;
     isbn13?: string;
@@ -31,6 +32,37 @@ export interface PaginatedResponse<T> {
     total: number;
     page: number;
     per_page: number;
+}
+
+export interface BookloreMetadata {
+    bookId: number;
+    title: string;
+    description?: string;
+    publisher?: string;
+    publishedDate?: string;
+    seriesName?: string;
+    seriesNumber?: number;
+    seriesTotal?: number;
+    isbn13?: string;
+    isbn10?: string;
+    asin?: string;
+    pageCount?: number;
+    language?: string;
+    goodreadsId?: string;
+    googleId?: string;
+    hardcoverId?: string;
+    hardcoverBookId?: number;
+    authors?: string[];
+    categories?: string[];
+}
+
+export interface BookloreBook {
+    id: number;
+    bookType: string;
+    libraryId: number;
+    fileName: string;
+    addedOn: string;
+    metadata: BookloreMetadata;
 }
 
 export interface BookloreAuthResponse {
@@ -103,6 +135,21 @@ export const api = {
 
         if (!response.ok) {
             throw new Error(`Booklore login failed: ${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
+    },
+
+    // Booklore API proxy
+    async getBookloreBooks(serverUrl: string, token: string): Promise<BookloreBook[]> {
+        const response = await fetch(`${serverUrl}/api/v1/books`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch books from Booklore: ${response.status} ${response.statusText}`);
         }
 
         return response.json();
