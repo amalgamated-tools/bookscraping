@@ -19,6 +19,8 @@ type Querier interface {
 	GetSeriesBySeriesID(ctx context.Context, seriesID int64) (Series, error)
 	ListBooks(ctx context.Context, arg ListBooksParams) ([]Book, error)
 	ListSeries(ctx context.Context, arg ListSeriesParams) ([]Series, error)
+	UpsertBook(ctx context.Context, arg UpsertBookParams) (Book, error)
+	UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error)
 }
 
 var _ Querier = (*Queries)(nil)

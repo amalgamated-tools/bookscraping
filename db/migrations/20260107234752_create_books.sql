@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS books (
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     series_name VARCHAR(255),
-    series_number INTEGER,
+    series_number REAL,
     asin VARCHAR(13),
     isbn10 VARCHAR(10),
     isbn13 VARCHAR(13),

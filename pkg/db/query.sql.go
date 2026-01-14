@@ -310,3 +310,117 @@ func (q *Queries) ListSeries(ctx context.Context, arg ListSeriesParams) ([]Serie
 	}
 	return items, nil
 }
+
+const upsertBook = `-- name: UpsertBook :one
+INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(book_id) DO UPDATE SET
+    title = excluded.title,
+    description = excluded.description,
+    series_name = excluded.series_name,
+    series_number = excluded.series_number,
+    asin = excluded.asin,
+    isbn10 = excluded.isbn10,
+    isbn13 = excluded.isbn13,
+    language = excluded.language,
+    hardcover_id = excluded.hardcover_id,
+    hardcover_book_id = excluded.hardcover_book_id,
+    goodreads_id = excluded.goodreads_id,
+    google_id = excluded.google_id,
+    data = excluded.data
+RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data
+`
+
+type UpsertBookParams struct {
+	BookID          int64       `json:"book_id"`
+	Title           string      `json:"title"`
+	Description     string      `json:"description"`
+	SeriesName      *string     `json:"series_name"`
+	SeriesNumber    *int64      `json:"series_number"`
+	Asin            *string     `json:"asin"`
+	Isbn10          *string     `json:"isbn10"`
+	Isbn13          *string     `json:"isbn13"`
+	Language        *string     `json:"language"`
+	HardcoverID     *string     `json:"hardcover_id"`
+	HardcoverBookID *int64      `json:"hardcover_book_id"`
+	GoodreadsID     *string     `json:"goodreads_id"`
+	GoogleID        *string     `json:"google_id"`
+	Data            interface{} `json:"data"`
+}
+
+func (q *Queries) UpsertBook(ctx context.Context, arg UpsertBookParams) (Book, error) {
+	row := q.db.QueryRowContext(ctx, upsertBook,
+		arg.BookID,
+		arg.Title,
+		arg.Description,
+		arg.SeriesName,
+		arg.SeriesNumber,
+		arg.Asin,
+		arg.Isbn10,
+		arg.Isbn13,
+		arg.Language,
+		arg.HardcoverID,
+		arg.HardcoverBookID,
+		arg.GoodreadsID,
+		arg.GoogleID,
+		arg.Data,
+	)
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.Title,
+		&i.Description,
+		&i.SeriesName,
+		&i.SeriesNumber,
+		&i.Asin,
+		&i.Isbn10,
+		&i.Isbn13,
+		&i.Language,
+		&i.HardcoverID,
+		&i.HardcoverBookID,
+		&i.GoodreadsID,
+		&i.GoogleID,
+		&i.Data,
+	)
+	return i, err
+}
+
+const upsertSeries = `-- name: UpsertSeries :one
+INSERT INTO series (series_id, name, description, url, data)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(series_id) DO UPDATE SET
+    name = excluded.name,
+    description = excluded.description,
+    url = excluded.url,
+    data = excluded.data
+RETURNING id, series_id, name, description, url, data
+`
+
+type UpsertSeriesParams struct {
+	SeriesID    int64       `json:"series_id"`
+	Name        string      `json:"name"`
+	Description *string     `json:"description"`
+	Url         *string     `json:"url"`
+	Data        interface{} `json:"data"`
+}
+
+func (q *Queries) UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error) {
+	row := q.db.QueryRowContext(ctx, upsertSeries,
+		arg.SeriesID,
+		arg.Name,
+		arg.Description,
+		arg.Url,
+		arg.Data,
+	)
+	var i Series
+	err := row.Scan(
+		&i.ID,
+		&i.SeriesID,
+		&i.Name,
+		&i.Description,
+		&i.Url,
+		&i.Data,
+	)
+	return i, err
+}
