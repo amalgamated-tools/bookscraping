@@ -324,9 +324,11 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	slog.Info("Fetched books from Booklore", "count", len(books))
+
 	// Sync books to DB
 	syncedCount := 0
-	uniqueSeries := make(map[int64]string)
+	uniqueSeries := make(map[string]struct{})
 
 	for _, book := range books {
 		asin := &book.ASIN
@@ -339,12 +341,13 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 
 		var seriesNamePtr *string
 		if book.SeriesName != "" {
+			slog.Info("Syncing book in series", "book_title", book.Title, "series_name", book.SeriesName)
 			seriesNamePtr = &book.SeriesName
 		}
 
 		// Collect unique series
-		if book.SeriesID != 0 && book.SeriesName != "" {
-			uniqueSeries[book.SeriesID] = book.SeriesName
+		if book.SeriesName != "" {
+			uniqueSeries[book.SeriesName] = struct{}{}
 		}
 
 		var seriesNumberPtr *float64
@@ -398,16 +401,16 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Sync unique series
-	for seriesID, seriesName := range uniqueSeries {
+	for seriesName := range uniqueSeries {
 		_, err := s.queries.UpsertSeries(ctx, db.UpsertSeriesParams{
-			SeriesID:    seriesID,
+			SeriesID:    0, // SeriesID is not available from Booklore, we get it from goodreads
 			Name:        seriesName,
 			Description: nil,
 			Url:         nil,
 			Data:        nil,
 		})
 		if err != nil {
-			slog.Warn("Failed to upsert series during sync", "series_id", seriesID, "error", err)
+			slog.Warn("Failed to upsert series during sync", "error", err)
 		}
 	}
 

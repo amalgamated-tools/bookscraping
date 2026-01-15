@@ -45,7 +45,6 @@ func processBookJSON(value []byte) Book {
 
 	book.Title, _ = jsonparser.GetString(value, "metadata", "title")
 	book.Description, _ = jsonparser.GetString(value, "metadata", "description")
-	book.SeriesID, _ = jsonparser.GetInt(value, "metadata", "seriesId")
 	book.SeriesName, _ = jsonparser.GetString(value, "metadata", "seriesName")
 	book.SeriesNumber, _ = jsonparser.GetFloat(value, "metadata", "seriesNumber")
 	book.SeriesTotal, _ = jsonparser.GetInt(value, "metadata", "seriesTotal")
@@ -70,7 +69,6 @@ type Book struct {
 	ID              int64    `json:"id"`
 	Title           string   `json:"title"`
 	Description     string   `json:"description"`
-	SeriesID        int64    `json:"seriesId"`
 	SeriesName      string   `json:"seriesName"`
 	SeriesNumber    float64  `json:"seriesNumber"`
 	SeriesTotal     int64    `json:"seriesTotal"`
