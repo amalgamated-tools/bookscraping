@@ -4,6 +4,11 @@
 
 package db
 
+type Author struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
 type Book struct {
 	ID              int64       `json:"id"`
 	BookID          int64       `json:"book_id"`
@@ -20,6 +25,11 @@ type Book struct {
 	GoodreadsID     *string     `json:"goodreads_id"`
 	GoogleID        *string     `json:"google_id"`
 	Data            interface{} `json:"data"`
+}
+
+type BookAuthor struct {
+	BookID   int64 `json:"book_id"`
+	AuthorID int64 `json:"author_id"`
 }
 
 type SchemaMigration struct {

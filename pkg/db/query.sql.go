@@ -222,7 +222,7 @@ func (q *Queries) GetSeriesBySeriesID(ctx context.Context, seriesID int64) (Seri
 
 const listBooks = `-- name: ListBooks :many
 SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
-ORDER BY id ASC
+ORDER BY title ASC
 LIMIT ? OFFSET ?
 `
 

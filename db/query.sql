@@ -8,7 +8,7 @@ WHERE book_id = ? LIMIT 1;
 
 -- name: ListBooks :many
 SELECT * FROM books
-ORDER BY id ASC
+ORDER BY title ASC
 LIMIT ? OFFSET ?;
 
 -- name: CountBooks :one
