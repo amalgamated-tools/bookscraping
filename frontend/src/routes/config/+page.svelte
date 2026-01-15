@@ -7,8 +7,11 @@
 	let password = $state("");
 	let success = $state(false);
 	let testing = $state(false);
+	let syncing = $state(false);
 	let testMessage = $state("");
 	let testSuccess = $state(false);
+	let syncMessage = $state("");
+	let syncSuccess = $state(false);
 
 	$effect(() => {
 		if (browser) {
@@ -17,6 +20,28 @@
 			password = localStorage.getItem("password") || "";
 		}
 	});
+
+	async function handleSync() {
+		if (!serverUrl || !username || !password) {
+			syncMessage = "Please save configuration first";
+			syncSuccess = false;
+			return;
+		}
+
+		syncing = true;
+		syncMessage = "";
+		
+		try {
+			await api.syncBooks(serverUrl, username, password);
+			syncSuccess = true;
+			syncMessage = "Sync completed successfully!";
+		} catch (e) {
+			syncSuccess = false;
+			syncMessage = e instanceof Error ? e.message : "Sync failed";
+		} finally {
+			syncing = false;
+		}
+	}
 
 	async function handleTest() {
 		if (!serverUrl || !username || !password) {
@@ -121,9 +146,21 @@
 			<button type="submit">Save Configuration</button>
 		</div>
 
+		<div class="button-group" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee;">
+			<button type="button" onclick={handleSync} disabled={syncing}>
+				{syncing ? "Syncing..." : "Sync Books to Database"}
+			</button>
+		</div>
+
 		{#if testMessage}
 			<div class="message {testSuccess ? 'success' : 'error'}">
 				{testMessage}
+			</div>
+		{/if}
+
+		{#if syncMessage}
+			<div class="message {syncSuccess ? 'success' : 'error'}">
+				{syncMessage}
 			</div>
 		{/if}
 

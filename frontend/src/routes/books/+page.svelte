@@ -8,7 +8,7 @@
 	let error = $state<string | null>(null);
 	let page = $state(1);
 	let total = $state(0);
-	let perPage = 20;
+	let perPage = 21;
 
 	// New state for configuration
 	let isConfigured = $state(false);
@@ -44,21 +44,21 @@
 			const accessToken = localStorage.getItem("accessToken");
 
 			if (serverUrl && accessToken) {
-				isConfigured = true;
-				// Only fetch if we haven't already fetched all books or if we want to refresh
-				if (allBooks.length === 0) {
-					console.log("Fetching all books from Booklore...");
-					allBooks = await api.getBookloreBooks(
-						serverUrl,
-						accessToken,
-					);
-					total = allBooks.length;
-				}
-
-				// Calculate pagination from local data
-				const start = (page - 1) * perPage;
-				const end = start + perPage;
-				books = allBooks.slice(start, end).map(mapBookloreToBook);
+				// We still use serverUrl and accessToken for other things potentially, 
+                // but for listing books we now prefer the local DB if we have done a sync.
+                // However, the original prompt asked to "stop fetching directly".
+                
+                // Let's change the logic:
+                // Always try to fetch from local API first.
+                // Only if that returns empty (or we explicitly want to browse remote?) do we maybe fetch remote?
+                // Actually, the goal is that the backend handles sync. So frontend should ONLY talk to backend.
+                
+                // So we remove the direct Booklore fetching logic here completely.
+                isConfigured = true; // Still mark as configured so we can show badges etc if needed
+                
+                const response = await api.getBooks(page, perPage);
+                books = response.data ?? [];
+                total = response.total;
 			} else {
 				// Fallback to local API if not configured
 				isConfigured = false;
@@ -81,36 +81,42 @@
 	function nextPage() {
 		if (page * perPage < total) {
 			page++;
-			// If configured, we just slice the array, otherwise we need to fetch
-			if (isConfigured) {
-				const start = (page - 1) * perPage;
-				const end = start + perPage;
-				books = allBooks.slice(start, end).map(mapBookloreToBook);
-			} else {
-				loadBooks();
-			}
+			loadBooks();
 		}
 	}
 
 	function prevPage() {
 		if (page > 1) {
 			page--;
-			// If configured, we just slice the array, otherwise we need to fetch
-			if (isConfigured) {
-				const start = (page - 1) * perPage;
-				const end = start + perPage;
-				books = allBooks.slice(start, end).map(mapBookloreToBook);
-			} else {
-				loadBooks();
-			}
+			loadBooks();
 		}
 	}
 
 	// Function to force refresh from API
-	function handleRefresh() {
-		allBooks = []; // Clear cache to force refetch
-		page = 1;
-		loadBooks();
+	async function handleRefresh() {
+		// First verify we have credentials
+		const serverUrl = localStorage.getItem("serverUrl");
+		const username = localStorage.getItem("username");
+		const password = localStorage.getItem("password");
+
+		if (!serverUrl || !username || !password) {
+			error = "Please configure Booklore credentials in the Config page first";
+			return;
+		}
+
+		loading = true;
+		error = null;
+		
+		try {
+			// Trigger backend sync
+			await api.syncBooks(serverUrl, username, password);
+			// After sync completes, reload the local book list
+			page = 1;
+			await loadBooks();
+		} catch (e) {
+			error = e instanceof Error ? e.message : "Failed to sync books";
+			loading = false;
+		}
 	}
 </script>
 
@@ -122,9 +128,6 @@
 	<div class="header">
 		<h1>📚 Books</h1>
 		<div class="header-actions">
-			{#if isConfigured}
-				<span class="source-badge">Using Booklore API</span>
-			{/if}
 			<button
 				onclick={handleRefresh}
 				disabled={loading}
@@ -140,7 +143,12 @@
 	{:else if error}
 		<div class="error">{error}</div>
 	{:else}
-		<p class="count">Showing {books.length} of {total} books</p>
+		<p class="count">
+			Showing {(page - 1) * perPage + 1}-{Math.min(
+				page * perPage,
+				total,
+			)} of {total} books
+		</p>
 
 		<div class="book-grid">
 			{#each books as book}
