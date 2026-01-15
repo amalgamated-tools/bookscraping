@@ -355,7 +355,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		// Store raw JSON data
 		jsonData, _ := json.Marshal(book)
 
-		_, err := s.queries.UpsertBook(ctx, db.UpsertBookParams{
+		insertedBook, err := s.queries.UpsertBook(ctx, db.UpsertBookParams{
 			BookID:          book.ID,
 			Title:           book.Title,
 			Description:     book.Description,
@@ -376,6 +376,24 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			slog.Error("Failed to sync book", "book_id", book.ID, "title", book.Title, "error", err)
 			continue
 		}
+
+		// Sync authors
+		for _, authorName := range book.Authors {
+			author, err := s.queries.UpsertAuthor(ctx, authorName)
+			if err != nil {
+				slog.Error("Failed to upsert author", "name", authorName, "error", err)
+				continue
+			}
+
+			err = s.queries.LinkBookAuthor(ctx, db.LinkBookAuthorParams{
+				BookID:   insertedBook.ID,
+				AuthorID: author.ID,
+			})
+			if err != nil {
+				slog.Error("Failed to link book author", "book_title", book.Title, "author", authorName, "error", err)
+			}
+		}
+
 		syncedCount++
 	}
 

@@ -126,6 +126,18 @@ func (q *Queries) CreateSeries(ctx context.Context, arg CreateSeriesParams) (Ser
 	return i, err
 }
 
+const getAuthorByName = `-- name: GetAuthorByName :one
+SELECT id, name FROM authors
+WHERE name = ? LIMIT 1
+`
+
+func (q *Queries) GetAuthorByName(ctx context.Context, name string) (Author, error) {
+	row := q.db.QueryRowContext(ctx, getAuthorByName, name)
+	var i Author
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const getBook = `-- name: GetBook :one
 SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
 WHERE id = ? LIMIT 1
@@ -220,6 +232,22 @@ func (q *Queries) GetSeriesBySeriesID(ctx context.Context, seriesID int64) (Seri
 	return i, err
 }
 
+const linkBookAuthor = `-- name: LinkBookAuthor :exec
+INSERT INTO book_authors (book_id, author_id)
+VALUES (?, ?)
+ON CONFLICT (book_id, author_id) DO NOTHING
+`
+
+type LinkBookAuthorParams struct {
+	BookID   int64 `json:"book_id"`
+	AuthorID int64 `json:"author_id"`
+}
+
+func (q *Queries) LinkBookAuthor(ctx context.Context, arg LinkBookAuthorParams) error {
+	_, err := q.db.ExecContext(ctx, linkBookAuthor, arg.BookID, arg.AuthorID)
+	return err
+}
+
 const listBooks = `-- name: ListBooks :many
 SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
 ORDER BY title ASC
@@ -309,6 +337,20 @@ func (q *Queries) ListSeries(ctx context.Context, arg ListSeriesParams) ([]Serie
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertAuthor = `-- name: UpsertAuthor :one
+INSERT INTO authors (name)
+VALUES (?)
+ON CONFLICT(name) DO UPDATE SET name=excluded.name
+RETURNING id, name
+`
+
+func (q *Queries) UpsertAuthor(ctx context.Context, name string) (Author, error) {
+	row := q.db.QueryRowContext(ctx, upsertAuthor, name)
+	var i Author
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
 }
 
 const upsertBook = `-- name: UpsertBook :one

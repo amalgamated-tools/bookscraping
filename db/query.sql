@@ -68,3 +68,18 @@ ON CONFLICT(series_id) DO UPDATE SET
     url = excluded.url,
     data = excluded.data
 RETURNING *;
+
+-- name: UpsertAuthor :one
+INSERT INTO authors (name)
+VALUES (?)
+ON CONFLICT(name) DO UPDATE SET name=excluded.name
+RETURNING *;
+
+-- name: GetAuthorByName :one
+SELECT * FROM authors
+WHERE name = ? LIMIT 1;
+
+-- name: LinkBookAuthor :exec
+INSERT INTO book_authors (book_id, author_id)
+VALUES (?, ?)
+ON CONFLICT (book_id, author_id) DO NOTHING;
