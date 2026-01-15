@@ -53,6 +53,7 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
+	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
 
 	// Serve embedded frontend
 	distContent, err := fs.Sub(distFS, "dist")
@@ -168,11 +169,51 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure logged in
-	if err := client.Login(); err != nil {
-		slog.Error("Failed to login to Booklore", "error", err)
-		writeError(w, http.StatusUnauthorized, "Failed to login to Booklore")
-		return
+	// Try to use stored token if available
+	storedAccessToken, _ := s.queries.GetConfig(ctx, "booklore_access_token")
+	storedRefreshToken, _ := s.queries.GetConfig(ctx, "booklore_refresh_token")
+	if storedAccessToken != "" {
+		client.SetToken(booklore.Token{
+			AccessToken:  storedAccessToken,
+			RefreshToken: storedRefreshToken,
+		})
+		// Try to validate the token
+		if err := client.ValidateToken(); err == nil {
+			slog.Info("Using valid stored token")
+		} else {
+			slog.Info("Stored token invalid, attempting fresh login")
+			// Token is invalid, fall through to login
+			if err := client.Login(); err != nil {
+				slog.Error("Failed to login to Booklore", "error", err)
+				writeError(w, http.StatusUnauthorized, "Failed to login to Booklore")
+				return
+			}
+			// Store the new token
+			newToken := client.GetToken()
+			s.queries.SetConfig(ctx, db.SetConfigParams{
+				Key:   "booklore_access_token",
+				Value: newToken.AccessToken,
+			})
+		}
+	} else {
+		// No token stored, perform login
+		if err := client.Login(); err != nil {
+			slog.Error("Failed to login to Booklore", "error", err)
+			writeError(w, http.StatusUnauthorized, "Failed to login to Booklore")
+			return
+		}
+		// Store the token
+		token := client.GetToken()
+		s.queries.SetConfig(ctx, db.SetConfigParams{
+			Key:   "booklore_access_token",
+			Value: token.AccessToken,
+		})
+		if token.RefreshToken != "" {
+			s.queries.SetConfig(ctx, db.SetConfigParams{
+				Key:   "booklore_refresh_token",
+				Value: token.RefreshToken,
+			})
+		}
 	}
 
 	// Fetch books

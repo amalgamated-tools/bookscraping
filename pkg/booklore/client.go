@@ -34,6 +34,14 @@ func (c *Client) UpdateCredentials(baseURL, username, password string) {
 	c.password = password
 }
 
+func (c *Client) GetToken() Token {
+	return c.token
+}
+
+func (c *Client) SetToken(token Token) {
+	c.token = token
+}
+
 // GetProjectRoot returns the root directory of the project.
 func GetProjectRoot() string {
 	return filepath.Join(filepath.Dir(b), "../..") //nolint:gocritic // This is a safe operation.

@@ -123,21 +123,12 @@ export const api = {
         return fetchApi<Series>(`/goodreads/series/${id}`);
     },
 
-    // Booklore authentication
-    async bookloreLogin(serverUrl: string, username: string, password: string): Promise<BookloreAuthResponse> {
-        const response = await fetch(`${serverUrl}/api/v1/auth/login`, {
+    // Test Booklore connection via backend
+    async testConnection(serverUrl: string, username: string, password: string): Promise<{ status: string; message: string }> {
+        return fetchApi<{ status: string; message: string }>('/testConnection', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ serverUrl, username, password })
         });
-
-        if (!response.ok) {
-            throw new Error(`Booklore login failed: ${response.status} ${response.statusText}`);
-        }
-
-        return response.json();
     },
 
     // Booklore API proxy
@@ -164,6 +155,7 @@ export const api = {
 
     // Config
     async getConfig(): Promise<{ serverUrl: string, username: string, password: string }> {
+        console.log('Fetching config from API');
         return fetchApi<{ serverUrl: string, username: string, password: string }>('/config');
     },
 

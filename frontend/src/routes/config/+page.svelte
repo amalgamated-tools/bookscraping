@@ -58,10 +58,9 @@
 		testMessage = "";
 		
 		try {
-			const response = await api.bookloreLogin(serverUrl, username, password);
-			// We don't need to store tokens in localStorage anymore as backend handles auth
+			const response = await api.testConnection(serverUrl, username, password);
 			testSuccess = true;
-			testMessage = "Connection successful!";
+			testMessage = response.message || "Connection successful!";
 		} catch (e) {
 			testSuccess = false;
 			testMessage = e instanceof Error ? e.message : "Connection failed";
@@ -75,15 +74,8 @@
 		
 		if (browser) {
 			try {
-				// Save to backend
+				// Save to backend only - the backend will handle authentication
 				await api.saveConfig(serverUrl, username, password);
-				
-				// Try to login and get tokens (keep tokens in local storage for now as they are session specific)
-				const response = await api.bookloreLogin(serverUrl, username, password);
-				
-				// Store tokens temporarily if needed, but we don't really use them directly anymore
-				// since the backend handles communication. 
-				// However, if we wanted to verify connection we do this login check.
 				
 				success = true;
 				setTimeout(() => {
@@ -91,9 +83,7 @@
 				}, 3000);
 
 			} catch (e) {
-				console.error("Failed to save/login:", e);
-				// We still might have saved the credentials on backend if login failed
-				// success = false; 
+				console.error("Failed to save config:", e);
 			}
 		}
 	}
