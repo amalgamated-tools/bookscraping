@@ -45,6 +45,7 @@ func processBookJSON(value []byte) Book {
 
 	book.Title, _ = jsonparser.GetString(value, "metadata", "title")
 	book.Description, _ = jsonparser.GetString(value, "metadata", "description")
+	book.SeriesID, _ = jsonparser.GetInt(value, "metadata", "seriesId")
 	book.SeriesName, _ = jsonparser.GetString(value, "metadata", "seriesName")
 	book.SeriesNumber, _ = jsonparser.GetFloat(value, "metadata", "seriesNumber")
 	book.SeriesTotal, _ = jsonparser.GetInt(value, "metadata", "seriesTotal")
