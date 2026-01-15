@@ -194,6 +194,18 @@ func (q *Queries) GetBookByBookID(ctx context.Context, bookID int64) (Book, erro
 	return i, err
 }
 
+const getConfig = `-- name: GetConfig :one
+SELECT value FROM configuration
+WHERE key = ? LIMIT 1
+`
+
+func (q *Queries) GetConfig(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getConfig, key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
 const getSeries = `-- name: GetSeries :one
 SELECT id, series_id, name, description, url, data FROM series
 WHERE id = ? LIMIT 1
@@ -337,6 +349,22 @@ func (q *Queries) ListSeries(ctx context.Context, arg ListSeriesParams) ([]Serie
 		return nil, err
 	}
 	return items, nil
+}
+
+const setConfig = `-- name: SetConfig :exec
+INSERT INTO configuration (key, value)
+VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value
+`
+
+type SetConfigParams struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+func (q *Queries) SetConfig(ctx context.Context, arg SetConfigParams) error {
+	_, err := q.db.ExecContext(ctx, setConfig, arg.Key, arg.Value)
+	return err
 }
 
 const upsertAuthor = `-- name: UpsertAuthor :one

@@ -83,3 +83,12 @@ WHERE name = ? LIMIT 1;
 INSERT INTO book_authors (book_id, author_id)
 VALUES (?, ?)
 ON CONFLICT (book_id, author_id) DO NOTHING;
+
+-- name: GetConfig :one
+SELECT value FROM configuration
+WHERE key = ? LIMIT 1;
+
+-- name: SetConfig :exec
+INSERT INTO configuration (key, value)
+VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value;

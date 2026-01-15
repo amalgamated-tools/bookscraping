@@ -12,10 +12,12 @@
 
     onMount(async () => {
         if (browser) {
-            const serverUrl = localStorage.getItem("serverUrl");
-            const username = localStorage.getItem("username");
-            const password = localStorage.getItem("password");
-            isConfigured = !!(serverUrl && username && password);
+            try {
+                const config = await api.getConfig();
+                isConfigured = !!(config.serverUrl && config.username && config.password);
+            } catch (e) {
+                isConfigured = false;
+            }
         }
 
         if (!isConfigured) {

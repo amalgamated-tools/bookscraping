@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
+	import { api } from "$lib/api";
 
 	let { children } = $props();
 	let isConfigured = $state(false);
 
 	function checkConfiguration() {
 		if (browser) {
-			const serverUrl = localStorage.getItem("serverUrl");
-			const username = localStorage.getItem("username");
-			const password = localStorage.getItem("password");
-			isConfigured = !!(serverUrl && username && password);
+			api.getConfig().then(config => {
+				isConfigured = !!(config.serverUrl && config.username && config.password);
+			}).catch(() => {
+				isConfigured = false;
+			});
 		}
 	}
 

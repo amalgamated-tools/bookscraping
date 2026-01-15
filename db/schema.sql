@@ -35,8 +35,13 @@ CREATE TABLE book_authors (
     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE
 );
+CREATE TABLE configuration (
+    key VARCHAR(255) PRIMARY KEY,
+    value TEXT NOT NULL
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20260107234752'),
   ('20260107235102'),
-  ('20260115002404');
+  ('20260115002404'),
+  ('20260115100000');

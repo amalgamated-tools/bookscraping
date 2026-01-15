@@ -39,36 +39,14 @@
 		error = null;
 
 		try {
-			// First check if we have configuration
-			const serverUrl = localStorage.getItem("serverUrl");
-			const accessToken = localStorage.getItem("accessToken");
-
-			if (serverUrl && accessToken) {
-				// We still use serverUrl and accessToken for other things potentially, 
-                // but for listing books we now prefer the local DB if we have done a sync.
-                // However, the original prompt asked to "stop fetching directly".
-                
-                // Let's change the logic:
-                // Always try to fetch from local API first.
-                // Only if that returns empty (or we explicitly want to browse remote?) do we maybe fetch remote?
-                // Actually, the goal is that the backend handles sync. So frontend should ONLY talk to backend.
-                
-                // So we remove the direct Booklore fetching logic here completely.
-                isConfigured = true; // Still mark as configured so we can show badges etc if needed
-                
-                const response = await api.getBooks(page, perPage);
-                books = response.data ?? [];
-                total = response.total;
-			} else {
-				// Fallback to local API if not configured
-				isConfigured = false;
-				const response = await api.getBooks(page, perPage);
-				books = response.data ?? [];
-				total = response.total;
-			}
+			// We always just load from our own API now
+			isConfigured = true;
+			
+			const response = await api.getBooks(page, perPage);
+			books = response.data ?? [];
+			total = response.total;
 		} catch (e) {
 			error = e instanceof Error ? e.message : "Failed to load books";
-			// If Booklore fails, maybe fallback to local? For now just show error
 		} finally {
 			loading = false;
 		}
@@ -94,22 +72,12 @@
 
 	// Function to force refresh from API
 	async function handleRefresh() {
-		// First verify we have credentials
-		const serverUrl = localStorage.getItem("serverUrl");
-		const username = localStorage.getItem("username");
-		const password = localStorage.getItem("password");
-
-		if (!serverUrl || !username || !password) {
-			error = "Please configure Booklore credentials in the Config page first";
-			return;
-		}
-
 		loading = true;
 		error = null;
 		
 		try {
-			// Trigger backend sync
-			await api.syncBooks(serverUrl, username, password);
+			// Trigger backend sync, backend should have config now
+			await api.syncBooks();
 			// After sync completes, reload the local book list
 			page = 1;
 			await loadBooks();

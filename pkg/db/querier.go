@@ -16,11 +16,13 @@ type Querier interface {
 	GetAuthorByName(ctx context.Context, name string) (Author, error)
 	GetBook(ctx context.Context, id int64) (Book, error)
 	GetBookByBookID(ctx context.Context, bookID int64) (Book, error)
+	GetConfig(ctx context.Context, key string) (string, error)
 	GetSeries(ctx context.Context, id int64) (Series, error)
 	GetSeriesBySeriesID(ctx context.Context, seriesID int64) (Series, error)
 	LinkBookAuthor(ctx context.Context, arg LinkBookAuthorParams) error
 	ListBooks(ctx context.Context, arg ListBooksParams) ([]Book, error)
 	ListSeries(ctx context.Context, arg ListSeriesParams) ([]Series, error)
+	SetConfig(ctx context.Context, arg SetConfigParams) error
 	UpsertAuthor(ctx context.Context, name string) (Author, error)
 	UpsertBook(ctx context.Context, arg UpsertBookParams) (Book, error)
 	UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error)

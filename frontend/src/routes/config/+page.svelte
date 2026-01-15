@@ -15,23 +15,27 @@
 
 	$effect(() => {
 		if (browser) {
-			serverUrl = localStorage.getItem("serverUrl") || "";
-			username = localStorage.getItem("username") || "";
-			password = localStorage.getItem("password") || "";
+			api.getConfig().then(config => {
+				serverUrl = config.serverUrl || "";
+				username = config.username || "";
+				password = config.password || "";
+			}).catch(err => {
+				console.error("Failed to load config:", err);
+			});
 		}
 	});
 
 	async function handleSync() {
-		if (!serverUrl || !username || !password) {
-			syncMessage = "Please save configuration first";
-			syncSuccess = false;
-			return;
-		}
-
+		// Sync without sending credentials if they are already saved on the server
+		// If the user has typed something new but not saved, we might want to warn them
+		// For now, let's assume if fields are filled, we send them, otherwise we rely on backend config
+		
 		syncing = true;
 		syncMessage = "";
 		
 		try {
+			// We can now call sync without arguments if we want the backend to use stored config
+			// But since the form has the values, we can send them too to be safe/explicit
 			await api.syncBooks(serverUrl, username, password);
 			syncSuccess = true;
 			syncMessage = "Sync completed successfully!";
@@ -55,10 +59,7 @@
 		
 		try {
 			const response = await api.bookloreLogin(serverUrl, username, password);
-			if (browser) {
-				localStorage.setItem("accessToken", response.accessToken);
-				localStorage.setItem("refreshToken", response.refreshToken);
-			}
+			// We don't need to store tokens in localStorage anymore as backend handles auth
 			testSuccess = true;
 			testMessage = "Connection successful!";
 		} catch (e) {
@@ -73,27 +74,27 @@
 		e.preventDefault();
 		
 		if (browser) {
-			localStorage.setItem("serverUrl", serverUrl);
-			localStorage.setItem("username", username);
-			localStorage.setItem("password", password);
-
-			// Try to login and get tokens
 			try {
+				// Save to backend
+				await api.saveConfig(serverUrl, username, password);
+				
+				// Try to login and get tokens (keep tokens in local storage for now as they are session specific)
 				const response = await api.bookloreLogin(serverUrl, username, password);
-				localStorage.setItem("accessToken", response.accessToken);
-				localStorage.setItem("refreshToken", response.refreshToken);
-			} catch (e) {
-				console.error("Failed to login during save:", e);
-				// We still saved the credentials, so we consider it a partial success
-				// potentially we could show a warning here
-			}
-			
-			success = true;
-			setTimeout(() => {
-				success = false;
-			}, 3000);
+				
+				// Store tokens temporarily if needed, but we don't really use them directly anymore
+				// since the backend handles communication. 
+				// However, if we wanted to verify connection we do this login check.
+				
+				success = true;
+				setTimeout(() => {
+					success = false;
+				}, 3000);
 
-			window.dispatchEvent(new Event('storage'));
+			} catch (e) {
+				console.error("Failed to save/login:", e);
+				// We still might have saved the credentials on backend if login failed
+				// success = false; 
+			}
 		}
 	}
 </script>

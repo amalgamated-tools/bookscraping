@@ -155,10 +155,22 @@ export const api = {
         return response.json();
     },
 
-    async syncBooks(server_url: string, username: string, password: string): Promise<void> {
+    async syncBooks(server_url?: string, username?: string, password?: string): Promise<void> {
         return fetchApi<void>('/sync', {
             method: 'POST',
             body: JSON.stringify({ server_url, username, password })
+        });
+    },
+
+    // Config
+    async getConfig(): Promise<{ serverUrl: string, username: string, password: string }> {
+        return fetchApi<{ serverUrl: string, username: string, password: string }>('/config');
+    },
+
+    async saveConfig(serverUrl: string, username: string, password: string): Promise<void> {
+        return fetchApi<void>('/config', {
+            method: 'POST',
+            body: JSON.stringify({ serverUrl, username, password })
         });
     }
 };

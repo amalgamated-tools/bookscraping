@@ -51,6 +51,8 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
 	s.mux.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)
+	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
+	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
 
 	// Serve embedded frontend
 	distContent, err := fs.Sub(distFS, "dist")
@@ -146,10 +148,19 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		json.NewDecoder(r.Body).Decode(&creds)
 	}
 
-	// Use provided creds or fall back to env/existing client
+	// Use provided creds or fall back to stored config or env
 	var client *booklore.Client
+
+	// Try to get config from DB first
+	storedServerUrl, _ := s.queries.GetConfig(ctx, "serverUrl")
+	storedUsername, _ := s.queries.GetConfig(ctx, "username")
+	storedPassword, _ := s.queries.GetConfig(ctx, "password")
+
+	// Precedence: Request Body > DB Config > Env Vars (via initial client)
 	if creds.ServerURL != "" && creds.Username != "" && creds.Password != "" {
 		client = booklore.NewClient(creds.ServerURL, creds.Username, creds.Password)
+	} else if storedServerUrl != "" && storedUsername != "" && storedPassword != "" {
+		client = booklore.NewClient(storedServerUrl, storedUsername, storedPassword)
 	} else if os.Getenv("BOOKLORE_SERVER") != "" {
 		client = s.blClient
 	} else {

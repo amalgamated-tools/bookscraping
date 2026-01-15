@@ -32,6 +32,11 @@ type BookAuthor struct {
 	AuthorID int64 `json:"author_id"`
 }
 
+type Configuration struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type SchemaMigration struct {
 	Version string `json:"version"`
 }

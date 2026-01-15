@@ -28,6 +28,12 @@ func NewClient(baseURL, username, password string) *Client {
 	}
 }
 
+func (c *Client) UpdateCredentials(baseURL, username, password string) {
+	c.baseURL = baseURL
+	c.username = username
+	c.password = password
+}
+
 // GetProjectRoot returns the root directory of the project.
 func GetProjectRoot() string {
 	return filepath.Join(filepath.Dir(b), "../..") //nolint:gocritic // This is a safe operation.
