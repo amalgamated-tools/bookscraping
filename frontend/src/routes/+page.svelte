@@ -2,6 +2,7 @@
     import { api, type Book } from "$lib/api";
     import { browser } from "$app/environment";
     import { onMount } from "svelte";
+    import { configStore, loadConfig } from "$lib/stores/configStore";
 
     let bookCount = $state(0);
     let seriesCount = $state(0);
@@ -12,32 +13,33 @@
 
     onMount(async () => {
         if (browser) {
-            try {
-                const config = await api.getConfig();
+            // Load config and subscribe to check if configured
+            await loadConfig();
+            const unsubscribe = configStore.subscribe(config => {
                 isConfigured = !!(config.serverUrl && config.username && config.password);
-            } catch (e) {
-                isConfigured = false;
+            });
+
+            if (!isConfigured) {
+                loading = false;
+                return () => unsubscribe();
             }
-        }
 
-        if (!isConfigured) {
-            loading = false;
-            return;
-        }
+            try {
+                console.log("Loading home page data...");
+                const [booksRes, seriesRes] = await Promise.all([
+                    api.getBooks(1, 5),
+                    api.getSeries(1, 5),
+                ]);
+                bookCount = booksRes.total;
+                seriesCount = seriesRes.total;
+                recentBooks = booksRes.data ?? [];
+            } catch (e) {
+                error = e instanceof Error ? e.message : "Failed to load data";
+            } finally {
+                loading = false;
+            }
 
-        try {
-            console.log("Loading home page data...");
-            const [booksRes, seriesRes] = await Promise.all([
-                api.getBooks(1, 5),
-                api.getSeries(1, 5),
-            ]);
-            bookCount = booksRes.total;
-            seriesCount = seriesRes.total;
-            recentBooks = booksRes.data ?? [];
-        } catch (e) {
-            error = e instanceof Error ? e.message : "Failed to load data";
-        } finally {
-            loading = false;
+            return unsubscribe;
         }
     });
 </script>

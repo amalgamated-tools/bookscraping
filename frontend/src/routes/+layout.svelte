@@ -1,26 +1,21 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
-	import { api } from "$lib/api";
+	import { configStore, loadConfig } from "$lib/stores/configStore";
 
 	let { children } = $props();
 	let isConfigured = $state(false);
 
-	function checkConfiguration() {
-		if (browser) {
-			api.getConfig().then(config => {
-				isConfigured = !!(config.serverUrl && config.username && config.password);
-			}).catch(() => {
-				isConfigured = false;
-			});
-		}
-	}
-
 	$effect(() => {
-		checkConfiguration();
-		
 		if (browser) {
-			window.addEventListener('storage', checkConfiguration);
-			return () => window.removeEventListener('storage', checkConfiguration);
+			// Load config once when layout mounts
+			loadConfig();
+
+			// Subscribe to config store to check if configured
+			const unsubscribe = configStore.subscribe(config => {
+				isConfigured = !!(config.serverUrl && config.username && config.password);
+			});
+
+			return unsubscribe;
 		}
 	});
 </script>

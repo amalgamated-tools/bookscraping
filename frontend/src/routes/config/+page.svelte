@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
 	import { api } from "$lib/api";
+	import { configStore, loadConfig, resetConfigCache } from "$lib/stores/configStore";
 
 	let serverUrl = $state("");
 	let username = $state("");
@@ -15,13 +16,17 @@
 
 	$effect(() => {
 		if (browser) {
-			api.getConfig().then(config => {
+			// Load config once when page mounts
+			loadConfig();
+
+			// Subscribe to config store to populate form
+			const unsubscribe = configStore.subscribe(config => {
 				serverUrl = config.serverUrl || "";
 				username = config.username || "";
 				password = config.password || "";
-			}).catch(err => {
-				console.error("Failed to load config:", err);
 			});
+
+			return unsubscribe;
 		}
 	});
 
@@ -76,6 +81,10 @@
 			try {
 				// Save to backend only - the backend will handle authentication
 				await api.saveConfig(serverUrl, username, password);
+				
+				// Update the store with new config
+				resetConfigCache();
+				await loadConfig();
 				
 				success = true;
 				setTimeout(() => {
