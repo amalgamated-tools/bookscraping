@@ -177,19 +177,19 @@
 			{#each books as book}
 				<div class="book-card-wrapper">
 					<div class="book-card-header">
+						<a href="/books/{book.id}" class="title-link">
+							<h3>{book.title}</h3>
+						</a>
 						{#if book.authors && book.authors.length > 0}
 							<div class="author-section">
 								<span class="author-label">By</span>
 								<p class="author">{book.authors.join(", ")}</p>
 							</div>
 						{/if}
-						<a href="/books/{book.id}" class="title-link">
-							<h3>{book.title}</h3>
-						</a>
 					</div>
 
-					<div class="book-card-content">
-						{#if book.series_name}
+					{#if book.series_name}
+						<div class="series-section">
 							<p class="series">
 								{#if book.series_id}
 									<a href="/series/{book.series_id}" class="series-link">
@@ -198,10 +198,10 @@
 								{:else}
 									{book.series_name}
 								{/if}
-								#{book.series_number}
+								<span class="series-number">#{book.series_number}</span>
 							</p>
-						{/if}
-					</div>
+						</div>
+					{/if}
 
 					<div class="meta">
 						{#if book.isbn13}
@@ -393,12 +393,26 @@
 		padding-bottom: 0.75rem;
 	}
 
+	.title-link {
+		text-decoration: none;
+		color: inherit;
+		display: block;
+		margin-bottom: 0.5rem;
+	}
+
+	.title-link h3 {
+		margin: 0;
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: #1a1a1a;
+		line-height: 1.4;
+	}
+
 	.author-section {
 		background: linear-gradient(135deg, #e8f0f7 0%, #f5f9fc 100%);
 		padding: 0.5rem 0.75rem;
 		border-radius: 6px;
 		border-left: 3px solid #2c3e50;
-		margin-bottom: 0.5rem;
 	}
 
 	.author-label {
@@ -417,38 +431,34 @@
 		line-height: 1.3;
 	}
 
-	.book-card-content {
-		margin-bottom: 0.5rem;
-	}
-
-	.title-link {
-		text-decoration: none;
-		color: inherit;
-		display: block;
-	}
-
-	.title-link h3 {
-		margin: 0;
-		font-size: 1.05rem;
-		font-weight: 600;
-		color: #1a1a1a;
-		line-height: 1.4;
+	.series-section {
+		background: #fff8e1;
+		border-left: 3px solid #f39c12;
+		padding: 0.5rem 0.75rem;
+		border-radius: 6px;
+		margin-bottom: 0.75rem;
 	}
 
 	.series {
-		margin: 0.5rem 0 0 0;
-		font-size: 0.85rem;
-		color: #7f8c8d;
+		margin: 0;
+		font-size: 0.9rem;
+		color: #d68910;
+		font-weight: 500;
 	}
 
 	.series-link {
-		color: #2c3e50;
+		color: #d68910;
 		text-decoration: none;
-		font-weight: 500;
+		font-weight: 600;
 	}
 
 	.series-link:hover {
 		text-decoration: underline;
+	}
+
+	.series-number {
+		margin-left: 0.25rem;
+		font-weight: 500;
 	}
 
 	.meta {
