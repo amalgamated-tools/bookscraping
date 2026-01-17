@@ -326,6 +326,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	// Sync books to DB
 	syncedCount := 0
 	uniqueSeries := make(map[string]struct{})
+	bookIDToDBID := make(map[int64]int64) // Map book.ID to insertedBook.ID
 
 	for _, book := range books {
 		asin := &book.ASIN
@@ -377,6 +378,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Store the mapping for later use in series linking
+		bookIDToDBID[book.ID] = insertedBook.ID
+
 		// Sync authors
 		for _, authorName := range book.Authors {
 			author, err := s.queries.UpsertAuthor(ctx, authorName)
@@ -425,16 +429,16 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Link book to series
-		foundBook, err := s.queries.GetBookByBookID(ctx, book.ID)
-		if err != nil {
-			slog.Error("Failed to find book for linking", "book_id", book.ID, "error", err)
+		// Get book database ID from the mapping created in first pass
+		dbBookID, exists := bookIDToDBID[book.ID]
+		if !exists {
+			slog.Error("Failed to find book ID mapping", "book_id", book.ID)
 			continue
 		}
 
 		err = s.queries.UpdateBookSeries(ctx, db.UpdateBookSeriesParams{
 			SeriesID: &seriesID,
-			ID:       foundBook.ID,
+			ID:       dbBookID,
 		})
 		if err != nil {
 			slog.Error("Failed to link book to series", "book_id", book.ID, "series_id", seriesID, "error", err)
