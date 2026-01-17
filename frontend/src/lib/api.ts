@@ -17,6 +17,7 @@ export interface Book {
     hardcover_book_id?: number;
     goodreads_id?: string;
     google_id?: string;
+    authors?: string[];
 }
 
 export interface Series {
@@ -131,20 +132,6 @@ export const api = {
         });
     },
 
-    // Booklore API proxy
-    async getBookloreBooks(serverUrl: string, token: string): Promise<BookloreBook[]> {
-        const response = await fetch(`${serverUrl}/api/v1/books`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch books from Booklore: ${response.status} ${response.statusText}`);
-        }
-
-        return response.json();
-    },
 
     async syncBooks(server_url?: string, username?: string, password?: string): Promise<void> {
         return fetchApi<void>('/sync', {

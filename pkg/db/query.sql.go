@@ -138,6 +138,36 @@ func (q *Queries) GetAuthorByName(ctx context.Context, name string) (Author, err
 	return i, err
 }
 
+const getAuthorsForBook = `-- name: GetAuthorsForBook :many
+SELECT a.id, a.name FROM authors a
+JOIN book_authors ba ON a.id = ba.author_id
+WHERE ba.book_id = ?
+ORDER BY a.name ASC
+`
+
+func (q *Queries) GetAuthorsForBook(ctx context.Context, bookID int64) ([]Author, error) {
+	rows, err := q.db.QueryContext(ctx, getAuthorsForBook, bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Author
+	for rows.Next() {
+		var i Author
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBook = `-- name: GetBook :one
 SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
 WHERE id = ? LIMIT 1

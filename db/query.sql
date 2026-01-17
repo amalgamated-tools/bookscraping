@@ -84,6 +84,12 @@ INSERT INTO book_authors (book_id, author_id)
 VALUES (?, ?)
 ON CONFLICT (book_id, author_id) DO NOTHING;
 
+-- name: GetAuthorsForBook :many
+SELECT a.id, a.name FROM authors a
+JOIN book_authors ba ON a.id = ba.author_id
+WHERE ba.book_id = ?
+ORDER BY a.name ASC;
+
 -- name: GetConfig :one
 SELECT value FROM configuration
 WHERE key = ? LIMIT 1;

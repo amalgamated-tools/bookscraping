@@ -176,23 +176,28 @@
 		<div class="book-grid">
 			{#each books as book}
 				<div class="book-card-wrapper">
-					<div class="book-card-content">
-						<a href="/books/{book.id}" class="title-link">
-							<h3>{book.title}</h3>
-						</a>
-						{#if book.series_name}
-							<p class="series">
-								{#if book.series_id}
-									<a href="/series/{book.series_id}" class="series-link">
-										{book.series_name}
-									</a>
-								{:else}
+				<div class="book-card-content">
+					<a href="/books/{book.id}" class="title-link">
+						<h3>{book.title}</h3>
+					</a>
+					{#if book.authors && book.authors.length > 0}
+						<p class="author">
+							{book.authors.join(", ")}
+						</p>
+					{/if}
+					{#if book.series_name}
+						<p class="series">
+							{#if book.series_id}
+								<a href="/series/{book.series_id}" class="series-link">
 									{book.series_name}
-								{/if}
-								#{book.series_number}
-							</p>
-						{/if}
-					</div>
+								</a>
+							{:else}
+								{book.series_name}
+							{/if}
+							#{book.series_number}
+						</p>
+					{/if}
+				</div>
 					<div class="meta">
 						{#if book.isbn13}
 							<span class="badge" title={book.isbn13}>ISBN</span>
@@ -390,6 +395,13 @@
 	.title-link h3 {
 		margin: 0 0 0.5rem;
 		font-size: 1.1rem;
+	}
+
+	.author {
+		margin: 0 0 0.25rem;
+		font-size: 0.85rem;
+		color: #555;
+		font-weight: 500;
 	}
 
 	.series {
