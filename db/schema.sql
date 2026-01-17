@@ -15,7 +15,7 @@ CREATE TABLE books (
     goodreads_id VARCHAR(255),
     google_id VARCHAR(255),
     data JSON
-, series_id INTEGER REFERENCES series(id) ON DELETE SET NULL);
+, series_id INTEGER REFERENCES series(id) ON DELETE SET NULL, is_missing BOOLEAN DEFAULT 0);
 CREATE TABLE series (
     id INTEGER PRIMARY KEY,
     series_id INTEGER NOT NULL UNIQUE,
@@ -56,4 +56,5 @@ INSERT INTO "schema_migrations" (version) VALUES
   ('20260115002404'),
   ('20260115100000'),
   ('20260117154351'),
-  ('20260117154352');
+  ('20260117154352'),
+  ('20260117155114');
