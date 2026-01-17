@@ -90,6 +90,31 @@ JOIN book_authors ba ON a.id = ba.author_id
 WHERE ba.book_id = ?
 ORDER BY a.name ASC;
 
+-- name: GetBooksBySeries :many
+SELECT * FROM books
+WHERE series_id = ?
+ORDER BY series_number ASC;
+
+-- name: GetSeriesAuthors :many
+SELECT a.id, a.name FROM authors a
+JOIN series_authors sa ON a.id = sa.author_id
+WHERE sa.series_id = ?
+ORDER BY a.name ASC;
+
+-- name: LinkSeriesAuthor :exec
+INSERT INTO series_authors (series_id, author_id)
+VALUES (?, ?)
+ON CONFLICT (series_id, author_id) DO NOTHING;
+
+-- name: UpdateBookSeries :exec
+UPDATE books
+SET series_id = ?
+WHERE id = ?;
+
+-- name: GetSeriesByGoodreadsID :one
+SELECT * FROM series
+WHERE series_id = ? LIMIT 1;
+
 -- name: GetConfig :one
 SELECT value FROM configuration
 WHERE key = ? LIMIT 1;

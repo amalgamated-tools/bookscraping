@@ -15,7 +15,7 @@ CREATE TABLE books (
     goodreads_id VARCHAR(255),
     google_id VARCHAR(255),
     data JSON
-);
+, series_id INTEGER REFERENCES series(id) ON DELETE SET NULL);
 CREATE TABLE series (
     id INTEGER PRIMARY KEY,
     series_id INTEGER NOT NULL UNIQUE,
@@ -39,9 +39,21 @@ CREATE TABLE configuration (
     key VARCHAR(255) PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE INDEX idx_books_series_id ON books(series_id);
+CREATE TABLE series_authors (
+    series_id INTEGER NOT NULL,
+    author_id INTEGER NOT NULL,
+    PRIMARY KEY (series_id, author_id),
+    FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_series_authors_series_id ON series_authors(series_id);
+CREATE INDEX idx_series_authors_author_id ON series_authors(author_id);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20260107234752'),
   ('20260107235102'),
   ('20260115002404'),
-  ('20260115100000');
+  ('20260115100000'),
+  ('20260117154351'),
+  ('20260117154352');
