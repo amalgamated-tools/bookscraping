@@ -18,6 +18,7 @@ export interface Book {
     goodreads_id?: string;
     google_id?: string;
     authors?: string[];
+    is_missing?: boolean;
 }
 
 export interface Series {

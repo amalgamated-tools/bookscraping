@@ -7,6 +7,46 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+// GetSeriesBooks fetches and parses a Goodreads series page, returning all books
+func (c *Client) GetSeriesBooks(seriesID string) ([]BookWithPosition, error) {
+	url := fmt.Sprintf("%s/series/%s", c.baseURL, seriesID)
+	slog.Info("Fetching series from URL", slog.String("url", url))
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("fetching series page: %w", err)
+	}
+	defer resp.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("parsing series HTML: %w", err)
+	}
+
+	var booksWithPosition []BookWithPosition
+
+	// Look for the React component with series data
+	doc.Find("div[data-react-class='ReactComponents.SeriesList']").Each(func(i int, s *goquery.Selection) {
+		dataProps, exists := s.Attr("data-react-props")
+		if !exists {
+			slog.Warn("No data-react-props found in series list div")
+			return
+		}
+
+		books, err := ParseSeriesData([]byte(dataProps))
+		if err != nil {
+			slog.Error("Error parsing series data", slog.String("error", err.Error()))
+			return
+		}
+
+		slog.Info("Parsed books from series", slog.Int("count", len(books)))
+		booksWithPosition = append(booksWithPosition, books...)
+	})
+
+	return booksWithPosition, nil
+}
+
+// GetSeries fetches series info - deprecated, use GetSeriesBooks instead
 func (c *Client) GetSeries(seriesID string) (*Series, error) {
 	url := fmt.Sprintf("%s/series/%s", c.baseURL, seriesID)
 	fmt.Println("Fetching series from URL:", url)

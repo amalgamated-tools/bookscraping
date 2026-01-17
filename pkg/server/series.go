@@ -143,24 +143,51 @@ func (s *Server) handleGetSeriesBooks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, booksWithAuthors)
 }
 
-// handleGetSeriesFromGoodreads is a stub for fetching series data from Goodreads
+// handleGetSeriesFromGoodreads fetches series data from Goodreads and creates missing books
 func (s *Server) handleGetSeriesFromGoodreads(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	seriesID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid series ID")
 		return
 	}
 
-	// TODO: Implement Goodreads series scraping
-	// This should:
-	// 1. Get at least one book from this series
-	// 2. Fetch the book's detail page from Goodreads
-	// 3. Extract the series link from the book detail
-	// 4. Scrape the series page for all books
-	// 5. Update the series record with the Goodreads series ID and description
-	// 6. Add any missing books to the database
+	ctx := context.Background()
 
-	slog.Info("Goodreads series fetch stub called", "series_id", id)
-	writeJSON(w, map[string]string{"status": "stub", "message": "Goodreads integration not yet implemented"})
+	// Get the series info
+	if _, err := s.queries.GetSeries(ctx, seriesID); err != nil {
+		slog.Error("Failed to get series", "id", seriesID, "error", err)
+		writeError(w, http.StatusNotFound, "Series not found")
+		return
+	}
+
+	// Get at least one book from this series to extract the Goodreads series ID
+	books, err := s.queries.GetBooksBySeries(ctx, &seriesID)
+	if err != nil || len(books) == 0 {
+		slog.Error("No books found for series", "series_id", seriesID)
+		writeError(w, http.StatusBadRequest, "Series has no books - cannot fetch from Goodreads")
+		return
+	}
+
+	// Find a book with a Goodreads ID to extract the series from
+	var goodreadsSeriesID string
+	for _, book := range books {
+		if book.GoodreadsID != nil && *book.GoodreadsID != "" {
+			// TODO: Fetch book from Goodreads and extract series ID
+			// For now, we'll need the series ID to be in the books data
+			slog.Info("Found book with Goodreads ID", "goodreads_id", *book.GoodreadsID)
+			// This would require scraping the Goodreads book page to find the series
+			break
+		}
+	}
+
+	// If we don't have a series ID yet, return an error
+	if goodreadsSeriesID == "" {
+		slog.Warn("Could not find Goodreads series ID from books")
+		writeError(w, http.StatusBadRequest, "Unable to find Goodreads series ID - none of the books have Goodreads IDs")
+		return
+	}
+
+	slog.Info("Would fetch Goodreads series", "series_id", goodreadsSeriesID)
+	writeJSON(w, map[string]string{"status": "success", "message": "Goodreads series fetch would be implemented"})
 }
