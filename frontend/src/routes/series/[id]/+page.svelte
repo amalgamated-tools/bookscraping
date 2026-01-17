@@ -8,6 +8,7 @@
 	let loading = $state(true);
 	let syncing = $state(false);
 	let error = $state<string | null>(null);
+	let syncMessage = $state<string | null>(null);
 	let pageNumber = $state(1);
 
 	onMount(async () => {
@@ -38,11 +39,22 @@
 		if (!series) return;
 
 		syncing = true;
+		syncMessage = null;
 		try {
-			await api.fetchSeriesFromGoodreads(series.id);
+			const response = await api.fetchSeriesFromGoodreads(series.id);
+			
 			// Reload books after sync
 			books = await api.getSeriesBooks(series.id);
 			books.sort((a, b) => (a.series_number ?? 0) - (b.series_number ?? 0));
+			
+			// Count missing books
+			const missingCount = books.filter(b => b.is_missing).length;
+			syncMessage = `Synced successfully! Found ${response.new_missing_books || 0} new missing books. (${missingCount} total missing)`;
+			
+			// Clear message after 5 seconds
+			setTimeout(() => {
+				syncMessage = null;
+			}, 5000);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to sync with Goodreads';
 		} finally {
@@ -62,6 +74,8 @@
 		<div class="loading">Loading series...</div>
 	{:else if error}
 		<div class="error">{error}</div>
+	{:else if syncMessage}
+		<div class="success">{syncMessage}</div>
 	{:else if series}
 		<div class="series-header">
 			<div class="header-top">
@@ -151,6 +165,14 @@
 		border-radius: 8px;
 		padding: 1rem;
 		color: #c00;
+	}
+
+	.success {
+		background-color: #efe;
+		border: 1px solid #cfc;
+		border-radius: 8px;
+		padding: 1rem;
+		color: #060;
 	}
 
 	.series-header {
