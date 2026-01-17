@@ -6,11 +6,6 @@
 	let { children } = $props();
 	let isConfigured = $state(false);
 
-	const sendTestMessage = () => {
-		const testMessage = `Test message at ${new Date().toISOString()}`;
-		websocketStore.send(testMessage);
-	};
-
 	$effect(() => {
 		if (browser) {
 			// Load config once when layout mounts
@@ -43,7 +38,6 @@
 				<a href="/series">Series</a>
 			{/if}
 			<a href="/config">Config</a>
-			<button onclick={sendTestMessage} class="test-button">Send Test WS Message</button>
 		</nav>
 	</header>
 
@@ -91,22 +85,6 @@
 	}
 
 	nav a:hover {
-		opacity: 0.8;
-	}
-
-	.test-button {
-		background-color: #27ae60;
-		color: white;
-		border: none;
-		padding: 0.5rem 1rem;
-		border-radius: 4px;
-		cursor: pointer;
-		font-weight: 500;
-		transition: opacity 0.2s;
-		margin-left: auto;
-	}
-
-	.test-button:hover {
 		opacity: 0.8;
 	}
 

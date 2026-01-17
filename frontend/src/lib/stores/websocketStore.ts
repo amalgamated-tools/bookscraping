@@ -1,58 +1,53 @@
 import { browser } from "$app/environment";
 import { writable } from "svelte/store";
 
-export interface WebSocketState {
+export interface SSEState {
 	status: "connecting" | "open" | "closed" | "error";
-	socket: WebSocket | null;
+	eventSource: EventSource | null;
 	lastMessage: string | null;
 }
 
-const createWebSocketStore = () => {
-	const { subscribe, set, update } = writable<WebSocketState>({
+const createSSEStore = () => {
+	const { subscribe, set, update } = writable<SSEState>({
 		status: "closed",
-		socket: null,
+		eventSource: null,
 		lastMessage: null
 	});
 
-	let socket: WebSocket | null = null;
+	let eventSource: EventSource | null = null;
 	let reconnectTimeout: number | undefined;
 	let reconnectAttempts = 0;
 
 	const connect = () => {
-		if (!browser || socket) {
+		if (!browser || eventSource) {
 			return;
 		}
 
-		set({ status: "connecting", socket: null, lastMessage: null });
+		set({ status: "connecting", eventSource: null, lastMessage: null });
 
-		const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-		const url = `${protocol}://${window.location.host}/ws`;
-		console.log("Attempting to connect to WebSocket:", url);
-		socket = new WebSocket(url);
+		const url = `/api/events`;
+		console.log("Attempting to connect to SSE:", url);
+		eventSource = new EventSource(url);
 
-		socket.addEventListener("open", () => {
-			console.log("WebSocket connection opened");
+		eventSource.addEventListener("open", () => {
+			console.log("SSE connection opened");
 			reconnectAttempts = 0;
-			set({ status: "open", socket, lastMessage: null });
+			set({ status: "open", eventSource, lastMessage: null });
 		});
 
-		socket.addEventListener("message", event => {
-			console.log("WebSocket message received:", event.data);
+		eventSource.addEventListener("message", event => {
+			console.log("SSE message received:", event.data);
 			update(state => ({
 				...state,
 				lastMessage: typeof event.data === "string" ? event.data : null
 			}));
 		});
 
-		socket.addEventListener("error", () => {
-			console.error("WebSocket error occurred");
-			set({ status: "error", socket, lastMessage: null });
-		});
-
-		socket.addEventListener("close", () => {
-			console.log("WebSocket connection closed");
-			socket = null;
-			set({ status: "closed", socket: null, lastMessage: null });
+		eventSource.addEventListener("error", () => {
+			console.error("SSE error occurred");
+			eventSource?.close();
+			eventSource = null;
+			set({ status: "error", eventSource: null, lastMessage: null });
 
 			if (browser) {
 				const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000);
@@ -69,40 +64,19 @@ const createWebSocketStore = () => {
 			reconnectTimeout = undefined;
 		}
 
-		if (socket) {
-			socket.close();
-			socket = null;
+		if (eventSource) {
+			eventSource.close();
+			eventSource = null;
 		}
 
-		set({ status: "closed", socket: null, lastMessage: null });
-	};
-
-	const send = (message: string) => {
-		if (!socket) {
-			console.warn("WebSocket not initialized - connection hasn't started yet");
-			return;
-		}
-		const states: Record<number, string> = {
-			0: "CONNECTING",
-			1: "OPEN",
-			2: "CLOSING",
-			3: "CLOSED"
-		};
-		const stateName = states[socket.readyState] || "UNKNOWN";
-		if (socket.readyState !== WebSocket.OPEN) {
-			console.warn(`WebSocket not open. Current state: ${socket.readyState} (${stateName})`);
-			return;
-		}
-		console.log("WebSocket message sent:", message);
-		socket.send(message);
+		set({ status: "closed", eventSource: null, lastMessage: null });
 	};
 
 	return {
 		subscribe,
 		connect,
-		disconnect,
-		send
+		disconnect
 	};
 };
 
-export const websocketStore = createWebSocketStore();
+export const websocketStore = createSSEStore();

@@ -1,87 +1,70 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
 	_ "modernc.org/sqlite"
 )
 
 func main() {
-	// cfg, err := config.LoadConfig()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	if len(os.Args) < 2 {
+		// Default behavior - run the goodreads client test
+		runGoodreadsTest()
+		return
+	}
 
+	switch os.Args[1] {
+	case "trigger":
+		triggerCmd := flag.NewFlagSet("trigger", flag.ExitOnError)
+		message := triggerCmd.String("message", "", "Message to send as SSE event")
+		serverURL := triggerCmd.String("server", "http://localhost:8080", "Server URL")
+		triggerCmd.Parse(os.Args[2:])
+
+		if *message == "" {
+			log.Fatal("--message flag is required")
+		}
+		triggerEvent(*serverURL, *message)
+	case "goodreads":
+		runGoodreadsTest()
+	default:
+		log.Fatal("Unknown command:", os.Args[1])
+	}
+}
+
+func triggerEvent(serverURL, message string) {
+	url := fmt.Sprintf("%s/api/events/trigger", serverURL)
+	payload := map[string]string{"message": message}
+	data, _ := json.Marshal(payload)
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		log.Fatal("Failed to trigger event:", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("Failed to trigger event: %d - %s", resp.StatusCode, string(body))
+	}
+
+	fmt.Println("Event triggered successfully:")
+	fmt.Println(string(body))
+}
+
+func runGoodreadsTest() {
 	grClient := goodreads.NewClient()
 	series, err := grClient.GetSeries("40650")
 	if err != nil {
 		panic(err)
 	}
 	println("Series Title:", series.Title)
-	// client := booklore.NewClient(cfg.BookloreServer, cfg.BookloreUsername, cfg.BooklorePassword)
-	// client.Login()
-
-	// books, err := client.LoadAllBooks()
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// series := make(map[string][]string)
-
-	// for _, book := range books {
-	// 	// does this book have series info?
-	// 	if book.SeriesName != "" {
-	// 		slog.Info(
-	// 			"Book with series",
-	// 			slog.String("title", book.Title),
-	// 			slog.String("goodreads_id", book.GoodreadsId),
-	// 			slog.String("series_name", book.SeriesName),
-	// 			slog.Float64("series_number", book.SeriesNumber),
-	// 			slog.String("url", fmt.Sprintf("https://booklore.veverka.net/book/%d", book.ID)),
-	// 		)
-	// 		if _, ok := series[book.SeriesName]; !ok {
-	// 			series[book.SeriesName] = []string{}
-	// 		}
-	// 		if book.GoodreadsId != "" {
-	// 			series[book.SeriesName] = append(series[book.SeriesName], book.GoodreadsId)
-	// 		}
-	// 	}
-	// }
-	// slog.Info("Series found", "count", len(series))
-	// for name, grIDs := range series {
-	// 	slog.Info(" Series", "name", name, "goodreads_id", grIDs)
-	// 	for _, grID := range grIDs {
-	// 		grb, err := grClient.GetSeriesByBookID(grID)
-	// 		if err != nil {
-	// 			slog.Error(" - error fetching from goodreads", "error", err)
-	// 		} else {
-	// 			slog.Info(" - found series info", slog.Any("series", grb))
-	// 			break
-	// 		}
-	// 	}
-	// }
 }
-
-// if book.SeriesName != "" {
-// 	// slog.Info("Book loaded", "title", book.Title, "series", book.SeriesName, "number", book.SeriesNumber)
-// 	if _, ok := series[book.SeriesName]; !ok {
-// 		series[book.SeriesName] = make(map[float64]booklore.Book)
-// 	}
-// 	series[book.SeriesName][book.SeriesNumber] = book
-// } else {
-// 	slog.Info("Book without series", "title", book.Title)
-// 	if book.GoodreadsId != "" {
-// 		// slog.Info(" - has goodreads id", "id", book.GoodreadsId)
-// 		// grb, err := grClient.GetBook(book.GoodreadsId)
-// 		// if err != nil {
-// 		// 	slog.Error(" - error fetching from goodreads", "error", err)
-// 		// } else {
-// 		// 	if grb.SeriesName != "" {
-// 		// 		slog.Info(" - found series info", "series", grb.SeriesName)
-// 		// 	}
-// 		// }
-// 	} else {
-// 		slog.Info(" - no goodreads id")
-// 	}
-// }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
-	"golang.org/x/net/websocket"
 )
 
 //go:embed all:dist
@@ -27,6 +27,7 @@ type Server struct {
 	grClient *goodreads.Client
 	blClient *booklore.Client
 	mux      *http.ServeMux
+	eventCh  chan string
 }
 
 // NewServer creates a new server instance
@@ -41,6 +42,7 @@ func NewServer(queries *db.Queries) *Server {
 		grClient: goodreads.NewClient(),
 		blClient: blClient,
 		mux:      http.NewServeMux(),
+		eventCh:  make(chan string, 100),
 	}
 	s.setupRoutes()
 	return s
@@ -57,7 +59,8 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
 	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
 
-	s.mux.Handle("/ws", websocket.Handler(s.handleWebSocket))
+	s.mux.HandleFunc("GET /api/events", s.handleEvents)
+	s.mux.HandleFunc("POST /api/events/trigger", s.handleTriggerEvent)
 
 	// Serve embedded frontend
 	distContent, err := fs.Sub(distFS, "dist")
@@ -140,43 +143,91 @@ func getPagination(r *http.Request) (page, perPage int) {
 	return
 }
 
-func (s *Server) handleWebSocket(conn *websocket.Conn) {
-	// Create a channel to signal when to send pings
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	// Set SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Create a channel for events
+	clientEvents := make(chan string, 10)
+	done := make(chan struct{})
+
+	// Set up a ticker to send periodic updates (like a heartbeat)
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	// Channel to receive messages from client
-	messageChan := make(chan string, 1)
-	errChan := make(chan error, 1)
-
-	// Goroutine to receive messages from the client
+	// Handle client disconnect
 	go func() {
-		for {
-			var msg string
-			if err := websocket.Message.Receive(conn, &msg); err != nil {
-				errChan <- err
+		<-r.Context().Done()
+		close(done)
+	}()
+
+	// Send initial connection message
+	fmt.Fprintf(w, "data: connected\n\n")
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+
+	slog.Info("SSE client connected")
+
+	// Subscribe to server events
+	go func() {
+		for event := range s.eventCh {
+			select {
+			case <-done:
 				return
+			case clientEvents <- event:
 			}
-			messageChan <- msg
 		}
 	}()
 
 	for {
 		select {
-		case <-conn.Request().Context().Done():
+		case <-done:
+			slog.Info("SSE client disconnected")
 			return
-		case msg := <-messageChan:
-			slog.Info("Received message from WebSocket client", "message", msg)
-		case err := <-errChan:
-			slog.Debug("WebSocket connection closed", "error", err)
-			return
+		case event := <-clientEvents:
+			fmt.Fprintf(w, "data: %s\n\n", event)
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			slog.Info("Sent SSE event to client", "event", event)
 		case <-ticker.C:
-			slog.Info("Sending ping to WebSocket client")
-			if err := websocket.Message.Send(conn, "ping"); err != nil {
-				slog.Debug("Failed to send ping", "error", err)
-				return
+			fmt.Fprintf(w, ": heartbeat\n\n")
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
 			}
 		}
+	}
+}
+
+func (s *Server) handleTriggerEvent(w http.ResponseWriter, r *http.Request) {
+	// Parse event message from request body
+	var payload struct {
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if payload.Message == "" {
+		writeError(w, http.StatusBadRequest, "Message cannot be empty")
+		return
+	}
+
+	// Send the event to all connected SSE clients
+	select {
+	case s.eventCh <- payload.Message:
+		slog.Info("Event triggered", "message", payload.Message)
+		writeJSON(w, map[string]string{
+			"status":  "success",
+			"message": payload.Message,
+		})
+	case <-time.After(1 * time.Second):
+		writeError(w, http.StatusInternalServerError, "Failed to send event")
 	}
 }
 
