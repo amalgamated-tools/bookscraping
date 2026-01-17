@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { api, type Book, type BookloreBook } from "$lib/api";
+	import { websocketStore } from "$lib/stores/websocketStore";
 	import { onMount } from "svelte";
 
 	let books = $state<Book[]>([]);
@@ -12,6 +13,9 @@
 
 	// New state for configuration
 	let isConfigured = $state(false);
+
+	let syncing = $state(false);
+	let syncProgress: string[] = $state([]);
 
 	function mapBookloreToBook(b: BookloreBook): Book {
 		return {
@@ -76,14 +80,51 @@
 		error = null;
 		
 		try {
-			// Trigger backend sync, backend should have config now
-			await api.syncBooks();
-			// After sync completes, reload the local book list
+			// Reload the local book list
 			page = 1;
 			await loadBooks();
 		} catch (e) {
-			error = e instanceof Error ? e.message : "Failed to sync books";
+			error = e instanceof Error ? e.message : "Failed to refresh books";
 			loading = false;
+		}
+	}
+
+	async function handleSync() {
+		syncing = true;
+		syncProgress = [];
+		error = null;
+
+		try {
+			// Subscribe to SSE events
+			const unsubscribe = websocketStore.subscribe((state) => {
+				if (state.lastMessage && state.lastMessage !== "connected") {
+					syncProgress = [...syncProgress, state.lastMessage];
+					// Auto-scroll to bottom
+					setTimeout(() => {
+						const progressDiv =
+							document.querySelector(".sync-progress");
+						if (progressDiv) {
+							progressDiv.scrollTop = progressDiv.scrollHeight;
+						}
+					}, 0);
+				}
+			});
+
+			// Trigger sync
+			await api.syncBooks();
+
+			// Wait a moment for final events to arrive
+			await new Promise((resolve) => setTimeout(resolve, 500));
+
+			unsubscribe();
+
+			// Reload books after sync completes
+			page = 1;
+			await loadBooks();
+		} catch (e) {
+			error = e instanceof Error ? e.message : "Failed to sync";
+		} finally {
+			syncing = false;
 		}
 	}
 </script>
@@ -98,13 +139,27 @@
 		<div class="header-actions">
 			<button
 				onclick={handleRefresh}
-				disabled={loading}
+				disabled={loading || syncing}
 				class="refresh-btn"
 			>
 				{loading ? "Refreshing..." : "🔄 Refresh"}
 			</button>
+			<button onclick={handleSync} disabled={syncing} class="sync-btn">
+				{syncing ? "Syncing..." : "⬇️ Sync"}
+			</button>
 		</div>
 	</div>
+
+	{#if syncing}
+		<div class="sync-container">
+			<h2>Sync Progress</h2>
+			<div class="sync-progress">
+				{#each syncProgress as message}
+					<div class="progress-line">{message}</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	{#if loading}
 		<div class="loading">Loading books...</div>
@@ -193,7 +248,7 @@
 	.header-actions {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 0.5rem;
 	}
 
 	.source-badge {
@@ -209,7 +264,8 @@
 		margin: 0;
 	}
 
-	.refresh-btn {
+	.refresh-btn,
+	.sync-btn {
 		padding: 0.5rem 1rem;
 		border: 2px solid #2c3e50;
 		background: white;
@@ -220,15 +276,61 @@
 		font-weight: 500;
 	}
 
-	.refresh-btn:hover:not(:disabled) {
+	.sync-btn {
+		border-color: #27ae60;
+		color: #27ae60;
+	}
+
+	.refresh-btn:hover:not(:disabled),
+	.sync-btn:hover:not(:disabled) {
 		background: #2c3e50;
 		color: white;
 	}
 
-	.refresh-btn:disabled {
+	.sync-btn:hover:not(:disabled) {
+		background: #27ae60;
+		border-color: #27ae60;
+	}
+
+	.refresh-btn:disabled,
+	.sync-btn:disabled {
 		border-color: #ccc;
 		color: #ccc;
 		cursor: not-allowed;
+	}
+
+	.sync-container {
+		background: #f5f5f5;
+		border-radius: 8px;
+		padding: 1rem;
+		margin-bottom: 2rem;
+	}
+
+	.sync-container h2 {
+		margin: 0 0 1rem 0;
+		font-size: 1rem;
+		color: #2c3e50;
+	}
+
+	.sync-progress {
+		background: white;
+		border: 1px solid #ddd;
+		border-radius: 4px;
+		padding: 1rem;
+		height: 300px;
+		overflow-y: auto;
+		font-family: monospace;
+		font-size: 0.85rem;
+	}
+
+	.progress-line {
+		padding: 0.25rem 0;
+		color: #333;
+	}
+
+	.progress-line:last-child {
+		color: #27ae60;
+		font-weight: bold;
 	}
 
 	.count {
