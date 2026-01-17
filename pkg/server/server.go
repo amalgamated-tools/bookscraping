@@ -10,10 +10,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
+	"golang.org/x/net/websocket"
 )
 
 //go:embed all:dist
@@ -54,6 +56,8 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
 	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
+
+	s.mux.Handle("/ws", websocket.Handler(s.handleWebSocket))
 
 	// Serve embedded frontend
 	distContent, err := fs.Sub(distFS, "dist")
@@ -134,6 +138,46 @@ func getPagination(r *http.Request) (page, perPage int) {
 		}
 	}
 	return
+}
+
+func (s *Server) handleWebSocket(conn *websocket.Conn) {
+	// Create a channel to signal when to send pings
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	// Channel to receive messages from client
+	messageChan := make(chan string, 1)
+	errChan := make(chan error, 1)
+
+	// Goroutine to receive messages from the client
+	go func() {
+		for {
+			var msg string
+			if err := websocket.Message.Receive(conn, &msg); err != nil {
+				errChan <- err
+				return
+			}
+			messageChan <- msg
+		}
+	}()
+
+	for {
+		select {
+		case <-conn.Request().Context().Done():
+			return
+		case msg := <-messageChan:
+			slog.Info("Received message from WebSocket client", "message", msg)
+		case err := <-errChan:
+			slog.Debug("WebSocket connection closed", "error", err)
+			return
+		case <-ticker.C:
+			slog.Info("Sending ping to WebSocket client")
+			if err := websocket.Message.Send(conn, "ping"); err != nil {
+				slog.Debug("Failed to send ping", "error", err)
+				return
+			}
+		}
+	}
 }
 
 func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
