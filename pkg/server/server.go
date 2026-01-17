@@ -54,6 +54,8 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("GET /api/books/{id}", s.handleGetBook)
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
 	s.mux.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
+	s.mux.HandleFunc("GET /api/series/{id}/books", s.handleGetSeriesBooks)
+	s.mux.HandleFunc("POST /api/series/{id}/goodreads", s.handleGetSeriesFromGoodreads)
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
@@ -324,6 +326,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	// Sync books to DB
 	syncedCount := 0
 	uniqueSeries := make(map[string]struct{})
+	bookIDToDBID := make(map[int64]int64) // Map book.ID to insertedBook.ID
 
 	for _, book := range books {
 		asin := &book.ASIN
@@ -375,6 +378,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Store the mapping for later use in series linking
+		bookIDToDBID[book.ID] = insertedBook.ID
+
 		// Sync authors
 		for _, authorName := range book.Authors {
 			author, err := s.queries.UpsertAuthor(ctx, authorName)
@@ -395,9 +401,10 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		syncedCount++
 	}
 
-	// Sync unique series
+	// Sync unique series and link books to series, and series to authors
+	seriesNameToID := make(map[string]int64)
 	for seriesName := range uniqueSeries {
-		_, err := s.queries.UpsertSeries(ctx, db.UpsertSeriesParams{
+		series, err := s.queries.UpsertSeries(ctx, db.UpsertSeriesParams{
 			SeriesID:    0, // SeriesID is not available from Booklore, we get it from goodreads
 			Name:        seriesName,
 			Description: nil,
@@ -405,7 +412,58 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			Data:        nil,
 		})
 		if err != nil {
-			slog.Warn("Failed to upsert series during sync", "error", err)
+			slog.Warn("Failed to upsert series during sync", "series_name", seriesName, "error", err)
+			continue
+		}
+		seriesNameToID[seriesName] = series.ID
+	}
+
+	// Second pass: link books to series and extract series authors
+	for _, book := range books {
+		if book.SeriesName == "" {
+			continue
+		}
+
+		seriesID, exists := seriesNameToID[book.SeriesName]
+		if !exists {
+			continue
+		}
+
+		// Get book database ID from the mapping created in first pass
+		dbBookID, exists := bookIDToDBID[book.ID]
+		if !exists {
+			slog.Error("Failed to find book ID mapping", "book_id", book.ID)
+			continue
+		}
+
+		err = s.queries.UpdateBookSeries(ctx, db.UpdateBookSeriesParams{
+			SeriesID: &seriesID,
+			ID:       dbBookID,
+		})
+		if err != nil {
+			slog.Error("Failed to link book to series", "book_id", book.ID, "series_id", seriesID, "error", err)
+			continue
+		}
+
+		// Link authors to series
+		for _, authorName := range book.Authors {
+			author, err := s.queries.GetAuthorByName(ctx, authorName)
+			if err != nil {
+				// Author should already exist from the previous pass, but just in case
+				author, err = s.queries.UpsertAuthor(ctx, authorName)
+				if err != nil {
+					slog.Error("Failed to upsert author", "author_name", authorName, "error", err)
+					continue
+				}
+			}
+
+			err = s.queries.LinkSeriesAuthor(ctx, db.LinkSeriesAuthorParams{
+				SeriesID: seriesID,
+				AuthorID: author.ID,
+			})
+			if err != nil {
+				slog.Error("Failed to link series author", "series_id", seriesID, "author", authorName, "error", err)
+			}
 		}
 	}
 

@@ -62,6 +62,9 @@
             {#each series as s}
                 <a href="/series/{s.id}" class="series-card">
                     <h3>{s.name}</h3>
+                    {#if s.authors && s.authors.length > 0}
+                        <p class="author">By {s.authors.join(", ")}</p>
+                    {/if}
                     {#if s.description}
                         <p class="description">
                             {s.description.slice(0, 150)}{s.description.length >
@@ -168,6 +171,13 @@
         margin: 0 0 0.5rem;
         font-size: 1.1rem;
         color: #2c3e50;
+    }
+
+    .series-card .author {
+        margin: 0.25rem 0 0.5rem;
+        font-size: 0.95rem;
+        color: #5a6c7d;
+        font-weight: 500;
     }
 
     .series-card .description {

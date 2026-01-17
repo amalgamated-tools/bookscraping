@@ -34,7 +34,7 @@ func (q *Queries) CountSeries(ctx context.Context) (int64, error) {
 const createBook = `-- name: CreateBook :one
 INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data
+RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id
 `
 
 type CreateBookParams struct {
@@ -88,6 +88,7 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.GoodreadsID,
 		&i.GoogleID,
 		&i.Data,
+		&i.SeriesID,
 	)
 	return i, err
 }
@@ -169,7 +170,7 @@ func (q *Queries) GetAuthorsForBook(ctx context.Context, bookID int64) ([]Author
 }
 
 const getBook = `-- name: GetBook :one
-SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
 WHERE id = ? LIMIT 1
 `
 
@@ -192,12 +193,13 @@ func (q *Queries) GetBook(ctx context.Context, id int64) (Book, error) {
 		&i.GoodreadsID,
 		&i.GoogleID,
 		&i.Data,
+		&i.SeriesID,
 	)
 	return i, err
 }
 
 const getBookByBookID = `-- name: GetBookByBookID :one
-SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
 WHERE book_id = ? LIMIT 1
 `
 
@@ -220,8 +222,55 @@ func (q *Queries) GetBookByBookID(ctx context.Context, bookID int64) (Book, erro
 		&i.GoodreadsID,
 		&i.GoogleID,
 		&i.Data,
+		&i.SeriesID,
 	)
 	return i, err
+}
+
+const getBooksBySeries = `-- name: GetBooksBySeries :many
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
+WHERE series_id = ?
+ORDER BY series_number ASC
+`
+
+func (q *Queries) GetBooksBySeries(ctx context.Context, seriesID *int64) ([]Book, error) {
+	rows, err := q.db.QueryContext(ctx, getBooksBySeries, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Book
+	for rows.Next() {
+		var i Book
+		if err := rows.Scan(
+			&i.ID,
+			&i.BookID,
+			&i.Title,
+			&i.Description,
+			&i.SeriesName,
+			&i.SeriesNumber,
+			&i.Asin,
+			&i.Isbn10,
+			&i.Isbn13,
+			&i.Language,
+			&i.HardcoverID,
+			&i.HardcoverBookID,
+			&i.GoodreadsID,
+			&i.GoogleID,
+			&i.Data,
+			&i.SeriesID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getConfig = `-- name: GetConfig :one
@@ -243,6 +292,55 @@ WHERE id = ? LIMIT 1
 
 func (q *Queries) GetSeries(ctx context.Context, id int64) (Series, error) {
 	row := q.db.QueryRowContext(ctx, getSeries, id)
+	var i Series
+	err := row.Scan(
+		&i.ID,
+		&i.SeriesID,
+		&i.Name,
+		&i.Description,
+		&i.Url,
+		&i.Data,
+	)
+	return i, err
+}
+
+const getSeriesAuthors = `-- name: GetSeriesAuthors :many
+SELECT a.id, a.name FROM authors a
+JOIN series_authors sa ON a.id = sa.author_id
+WHERE sa.series_id = ?
+ORDER BY a.name ASC
+`
+
+func (q *Queries) GetSeriesAuthors(ctx context.Context, seriesID int64) ([]Author, error) {
+	rows, err := q.db.QueryContext(ctx, getSeriesAuthors, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Author
+	for rows.Next() {
+		var i Author
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSeriesByGoodreadsID = `-- name: GetSeriesByGoodreadsID :one
+SELECT id, series_id, name, description, url, data FROM series
+WHERE series_id = ? LIMIT 1
+`
+
+func (q *Queries) GetSeriesByGoodreadsID(ctx context.Context, seriesID int64) (Series, error) {
+	row := q.db.QueryRowContext(ctx, getSeriesByGoodreadsID, seriesID)
 	var i Series
 	err := row.Scan(
 		&i.ID,
@@ -290,8 +388,24 @@ func (q *Queries) LinkBookAuthor(ctx context.Context, arg LinkBookAuthorParams) 
 	return err
 }
 
+const linkSeriesAuthor = `-- name: LinkSeriesAuthor :exec
+INSERT INTO series_authors (series_id, author_id)
+VALUES (?, ?)
+ON CONFLICT (series_id, author_id) DO NOTHING
+`
+
+type LinkSeriesAuthorParams struct {
+	SeriesID int64 `json:"series_id"`
+	AuthorID int64 `json:"author_id"`
+}
+
+func (q *Queries) LinkSeriesAuthor(ctx context.Context, arg LinkSeriesAuthorParams) error {
+	_, err := q.db.ExecContext(ctx, linkSeriesAuthor, arg.SeriesID, arg.AuthorID)
+	return err
+}
+
 const listBooks = `-- name: ListBooks :many
-SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data FROM books
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
 ORDER BY title ASC
 LIMIT ? OFFSET ?
 `
@@ -326,6 +440,7 @@ func (q *Queries) ListBooks(ctx context.Context, arg ListBooksParams) ([]Book, e
 			&i.GoodreadsID,
 			&i.GoogleID,
 			&i.Data,
+			&i.SeriesID,
 		); err != nil {
 			return nil, err
 		}
@@ -397,6 +512,22 @@ func (q *Queries) SetConfig(ctx context.Context, arg SetConfigParams) error {
 	return err
 }
 
+const updateBookSeries = `-- name: UpdateBookSeries :exec
+UPDATE books
+SET series_id = ?
+WHERE id = ?
+`
+
+type UpdateBookSeriesParams struct {
+	SeriesID *int64 `json:"series_id"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) UpdateBookSeries(ctx context.Context, arg UpdateBookSeriesParams) error {
+	_, err := q.db.ExecContext(ctx, updateBookSeries, arg.SeriesID, arg.ID)
+	return err
+}
+
 const upsertAuthor = `-- name: UpsertAuthor :one
 INSERT INTO authors (name)
 VALUES (?)
@@ -428,7 +559,7 @@ ON CONFLICT(book_id) DO UPDATE SET
     goodreads_id = excluded.goodreads_id,
     google_id = excluded.google_id,
     data = excluded.data
-RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data
+RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id
 `
 
 type UpsertBookParams struct {
@@ -482,6 +613,7 @@ func (q *Queries) UpsertBook(ctx context.Context, arg UpsertBookParams) (Book, e
 		&i.GoodreadsID,
 		&i.GoogleID,
 		&i.Data,
+		&i.SeriesID,
 	)
 	return i, err
 }

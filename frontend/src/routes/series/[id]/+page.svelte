@@ -1,22 +1,54 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { api, type Series } from '$lib/api';
+	import { api, type Series, type Book } from '$lib/api';
 	import { onMount } from 'svelte';
 
 	let series = $state<Series | null>(null);
+	let books = $state<Book[]>([]);
 	let loading = $state(true);
+	let syncing = $state(false);
 	let error = $state<string | null>(null);
+	let pageNumber = $state(1);
 
 	onMount(async () => {
 		const id = parseInt(page.params.id ?? '0');
+		const urlParams = new URLSearchParams(window.location.search);
+		pageNumber = parseInt(urlParams.get('page') ?? '1');
+
 		try {
 			series = await api.getSeriesById(id);
+			books = await api.getSeriesBooks(id);
+			// Sort books by series number
+			books.sort((a, b) => (a.series_number ?? 0) - (b.series_number ?? 0));
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load series';
 		} finally {
 			loading = false;
 		}
 	});
+
+	function getBackLink(): string {
+		if (pageNumber > 1) {
+			return `/series?page=${pageNumber}`;
+		}
+		return '/series';
+	}
+
+	async function syncWithGoodreads() {
+		if (!series) return;
+
+		syncing = true;
+		try {
+			await api.fetchSeriesFromGoodreads(series.id);
+			// Reload books after sync
+			books = await api.getSeriesBooks(series.id);
+			books.sort((a, b) => (a.series_number ?? 0) - (b.series_number ?? 0));
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to sync with Goodreads';
+		} finally {
+			syncing = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -24,7 +56,7 @@
 </svelte:head>
 
 <div class="series-detail">
-	<a href="/series" class="back-link">← Back to Series</a>
+	<a href={getBackLink()} class="back-link">← Back to Series</a>
 
 	{#if loading}
 		<div class="loading">Loading series...</div>
@@ -32,7 +64,22 @@
 		<div class="error">{error}</div>
 	{:else if series}
 		<div class="series-header">
-			<h1>{series.name}</h1>
+			<div class="header-top">
+				<div>
+					<h1>{series.name}</h1>
+					{#if series.authors && series.authors.length > 0}
+						<p class="series-authors">By {series.authors.join(', ')}</p>
+					{/if}
+				</div>
+				<button 
+					onclick={syncWithGoodreads} 
+					disabled={syncing} 
+					class="sync-btn"
+					title="Sync with Goodreads to find missing books"
+				>
+					{syncing ? "Syncing..." : "📚 Sync Goodreads"}
+				</button>
+			</div>
 		</div>
 
 		{#if series.description}
@@ -50,6 +97,32 @@
 				</a>
 			</section>
 		{/if}
+
+		{#if books.length > 0}
+			<section class="books">
+				<h2>Books in Series ({books.length})</h2>
+				<div class="books-list">
+					{#each books as book (book.id)}
+						<div class="book-item" class:missing={book.is_missing}>
+							{#if book.series_number}
+								<span class="book-number">#{book.series_number}</span>
+							{/if}
+							<div class="book-info">
+								<div class="book-title-row">
+									<h3>{book.title}</h3>
+									{#if book.is_missing}
+										<span class="missing-badge">Missing</span>
+									{/if}
+								</div>
+								{#if book.authors && book.authors.length > 0}
+									<p class="book-authors">{book.authors.join(', ')}</p>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			</section>
+		{/if}
 	{/if}
 </div>
 
@@ -59,6 +132,7 @@
 		margin-bottom: 1rem;
 		color: #2c3e50;
 		text-decoration: none;
+		font-weight: 500;
 	}
 
 	.back-link:hover {
@@ -83,8 +157,48 @@
 		margin-bottom: 2rem;
 	}
 
+	.header-top {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 1.5rem;
+	}
+
 	.series-header h1 {
-		margin-bottom: 0.5rem;
+		margin: 0 0 0.5rem;
+		font-size: 1.8rem;
+		color: #2c3e50;
+	}
+
+	.series-authors {
+		margin: 0;
+		font-size: 1.05rem;
+		color: #5a6c7d;
+		font-weight: 500;
+	}
+
+	.sync-btn {
+		padding: 0.5rem 1rem;
+		border: 2px solid #2c3e50;
+		background: white;
+		color: #2c3e50;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 0.9rem;
+		font-weight: 500;
+		white-space: nowrap;
+		transition: all 0.2s;
+	}
+
+	.sync-btn:hover:not(:disabled) {
+		background: #2c3e50;
+		color: white;
+	}
+
+	.sync-btn:disabled {
+		border-color: #ccc;
+		color: #ccc;
+		cursor: not-allowed;
 	}
 
 	section {
@@ -110,5 +224,78 @@
 	.links a {
 		color: #2c3e50;
 		font-weight: 500;
+	}
+
+	.books-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.book-item {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+		padding: 1rem;
+		background: #f9f9f9;
+		border-radius: 6px;
+		border-left: 4px solid #2c3e50;
+	}
+
+	.book-number {
+		display: inline-block;
+		min-width: 3rem;
+		padding: 0.25rem 0.5rem;
+		background: #2c3e50;
+		color: white;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		font-weight: 600;
+		text-align: center;
+		margin-top: 0.25rem;
+	}
+
+	.book-info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.book-title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0 0 0.25rem;
+	}
+
+	.book-info h3 {
+		margin: 0;
+		font-size: 1.05rem;
+		color: #2c3e50;
+	}
+
+	.book-authors {
+		margin: 0;
+		font-size: 0.9rem;
+		color: #666;
+	}
+
+	.book-item.missing {
+		opacity: 0.6;
+		border-left-color: #999;
+	}
+
+	.book-item.missing .book-number {
+		background: #999;
+	}
+
+	.missing-badge {
+		display: inline-block;
+		padding: 0.25rem 0.5rem;
+		background: #ddd;
+		color: #666;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		margin-left: 0.5rem;
 	}
 </style>

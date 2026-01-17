@@ -25,6 +25,7 @@ type Book struct {
 	GoodreadsID     *string     `json:"goodreads_id"`
 	GoogleID        *string     `json:"google_id"`
 	Data            interface{} `json:"data"`
+	SeriesID        *int64      `json:"series_id"`
 }
 
 type BookAuthor struct {
@@ -48,4 +49,9 @@ type Series struct {
 	Description *string     `json:"description"`
 	Url         *string     `json:"url"`
 	Data        interface{} `json:"data"`
+}
+
+type SeriesAuthor struct {
+	SeriesID int64 `json:"series_id"`
+	AuthorID int64 `json:"author_id"`
 }

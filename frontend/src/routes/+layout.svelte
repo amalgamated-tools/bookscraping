@@ -32,11 +32,10 @@
 <div class="app">
 	<header>
 		<nav>
-			{#if isConfigured}
-				<a href="/">Home</a>
-				<a href="/books">Books</a>
-				<a href="/series">Series</a>
-			{/if}
+		{#if isConfigured}
+			<a href="/">Home</a>
+			<a href="/series">Series</a>
+		{/if}
 			<a href="/config">Config</a>
 		</nav>
 	</header>

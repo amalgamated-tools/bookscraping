@@ -18,6 +18,7 @@ export interface Book {
     goodreads_id?: string;
     google_id?: string;
     authors?: string[];
+    is_missing?: boolean;
 }
 
 export interface Series {
@@ -26,6 +27,7 @@ export interface Series {
     name: string;
     description?: string;
     url?: string;
+    authors?: string[];
 }
 
 export interface PaginatedResponse<T> {
@@ -109,6 +111,16 @@ export const api = {
 
     async getSeriesById(id: number): Promise<Series> {
         return fetchApi<Series>(`/series/${id}`);
+    },
+
+    async getSeriesBooks(id: number): Promise<Book[]> {
+        return fetchApi<Book[]>(`/series/${id}/books`);
+    },
+
+    async fetchSeriesFromGoodreads(id: number): Promise<void> {
+        return fetchApi<void>(`/series/${id}/goodreads`, {
+            method: 'POST'
+        });
     },
 
     // Goodreads integration
