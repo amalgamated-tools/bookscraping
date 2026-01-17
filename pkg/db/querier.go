@@ -12,6 +12,7 @@ type Querier interface {
 	CountBooks(ctx context.Context) (int64, error)
 	CountSeries(ctx context.Context) (int64, error)
 	CreateBook(ctx context.Context, arg CreateBookParams) (Book, error)
+	CreateMissingBook(ctx context.Context, arg CreateMissingBookParams) (Book, error)
 	CreateSeries(ctx context.Context, arg CreateSeriesParams) (Series, error)
 	GetAuthorByName(ctx context.Context, name string) (Author, error)
 	GetAuthorsForBook(ctx context.Context, bookID int64) ([]Author, error)

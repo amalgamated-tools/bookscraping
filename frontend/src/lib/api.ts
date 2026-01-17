@@ -30,6 +30,15 @@ export interface Series {
     authors?: string[];
 }
 
+export interface SyncSeriesResponse {
+    status: string;
+    message: string;
+    series_id: number;
+    existing_books: number;
+    missing_books: number;
+    new_missing_books: number;
+}
+
 export interface PaginatedResponse<T> {
     data: T[];
     total: number;
@@ -117,8 +126,8 @@ export const api = {
         return fetchApi<Book[]>(`/series/${id}/books`);
     },
 
-    async fetchSeriesFromGoodreads(id: number): Promise<void> {
-        return fetchApi<void>(`/series/${id}/goodreads`, {
+    async fetchSeriesFromGoodreads(id: number): Promise<SyncSeriesResponse> {
+        return fetchApi<SyncSeriesResponse>(`/series/${id}/goodreads`, {
             method: 'POST'
         });
     },

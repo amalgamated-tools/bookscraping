@@ -26,6 +26,7 @@ type Book struct {
 	GoogleID        *string     `json:"google_id"`
 	Data            interface{} `json:"data"`
 	SeriesID        *int64      `json:"series_id"`
+	IsMissing       *bool       `json:"is_missing"`
 }
 
 type BookAuthor struct {

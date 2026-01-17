@@ -15,13 +15,13 @@ LIMIT ? OFFSET ?;
 SELECT COUNT(*) AS count FROM books;
 
 -- name: CreateBook :one
-INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, is_missing)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpsertBook :one
-INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, is_missing)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(book_id) DO UPDATE SET
     title = excluded.title,
     description = excluded.description,
@@ -35,7 +35,8 @@ ON CONFLICT(book_id) DO UPDATE SET
     hardcover_book_id = excluded.hardcover_book_id,
     goodreads_id = excluded.goodreads_id,
     google_id = excluded.google_id,
-    data = excluded.data
+    data = excluded.data,
+    is_missing = excluded.is_missing
 RETURNING *;
 
 -- name: GetSeries :one
@@ -110,6 +111,19 @@ ON CONFLICT (series_id, author_id) DO NOTHING;
 UPDATE books
 SET series_id = ?
 WHERE id = ?;
+
+-- name: CreateMissingBook :one
+INSERT INTO books (book_id, title, description, series_name, series_number, goodreads_id, series_id, is_missing)
+VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+ON CONFLICT(book_id) DO UPDATE SET
+    title = excluded.title,
+    description = excluded.description,
+    series_name = excluded.series_name,
+    series_number = excluded.series_number,
+    goodreads_id = excluded.goodreads_id,
+    series_id = excluded.series_id,
+    is_missing = 1
+RETURNING *;
 
 -- name: GetSeriesByGoodreadsID :one
 SELECT * FROM series

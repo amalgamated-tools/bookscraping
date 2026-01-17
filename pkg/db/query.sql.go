@@ -32,9 +32,9 @@ func (q *Queries) CountSeries(ctx context.Context) (int64, error) {
 }
 
 const createBook = `-- name: CreateBook :one
-INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id
+INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, is_missing)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id, is_missing
 `
 
 type CreateBookParams struct {
@@ -52,6 +52,7 @@ type CreateBookParams struct {
 	GoodreadsID     *string     `json:"goodreads_id"`
 	GoogleID        *string     `json:"google_id"`
 	Data            interface{} `json:"data"`
+	IsMissing       *bool       `json:"is_missing"`
 }
 
 func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, error) {
@@ -70,6 +71,7 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		arg.GoodreadsID,
 		arg.GoogleID,
 		arg.Data,
+		arg.IsMissing,
 	)
 	var i Book
 	err := row.Scan(
@@ -89,6 +91,64 @@ func (q *Queries) CreateBook(ctx context.Context, arg CreateBookParams) (Book, e
 		&i.GoogleID,
 		&i.Data,
 		&i.SeriesID,
+		&i.IsMissing,
+	)
+	return i, err
+}
+
+const createMissingBook = `-- name: CreateMissingBook :one
+INSERT INTO books (book_id, title, description, series_name, series_number, goodreads_id, series_id, is_missing)
+VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+ON CONFLICT(book_id) DO UPDATE SET
+    title = excluded.title,
+    description = excluded.description,
+    series_name = excluded.series_name,
+    series_number = excluded.series_number,
+    goodreads_id = excluded.goodreads_id,
+    series_id = excluded.series_id,
+    is_missing = 1
+RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id, is_missing
+`
+
+type CreateMissingBookParams struct {
+	BookID       int64    `json:"book_id"`
+	Title        string   `json:"title"`
+	Description  string   `json:"description"`
+	SeriesName   *string  `json:"series_name"`
+	SeriesNumber *float64 `json:"series_number"`
+	GoodreadsID  *string  `json:"goodreads_id"`
+	SeriesID     *int64   `json:"series_id"`
+}
+
+func (q *Queries) CreateMissingBook(ctx context.Context, arg CreateMissingBookParams) (Book, error) {
+	row := q.db.QueryRowContext(ctx, createMissingBook,
+		arg.BookID,
+		arg.Title,
+		arg.Description,
+		arg.SeriesName,
+		arg.SeriesNumber,
+		arg.GoodreadsID,
+		arg.SeriesID,
+	)
+	var i Book
+	err := row.Scan(
+		&i.ID,
+		&i.BookID,
+		&i.Title,
+		&i.Description,
+		&i.SeriesName,
+		&i.SeriesNumber,
+		&i.Asin,
+		&i.Isbn10,
+		&i.Isbn13,
+		&i.Language,
+		&i.HardcoverID,
+		&i.HardcoverBookID,
+		&i.GoodreadsID,
+		&i.GoogleID,
+		&i.Data,
+		&i.SeriesID,
+		&i.IsMissing,
 	)
 	return i, err
 }
@@ -170,7 +230,7 @@ func (q *Queries) GetAuthorsForBook(ctx context.Context, bookID int64) ([]Author
 }
 
 const getBook = `-- name: GetBook :one
-SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id, is_missing FROM books
 WHERE id = ? LIMIT 1
 `
 
@@ -194,12 +254,13 @@ func (q *Queries) GetBook(ctx context.Context, id int64) (Book, error) {
 		&i.GoogleID,
 		&i.Data,
 		&i.SeriesID,
+		&i.IsMissing,
 	)
 	return i, err
 }
 
 const getBookByBookID = `-- name: GetBookByBookID :one
-SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id, is_missing FROM books
 WHERE book_id = ? LIMIT 1
 `
 
@@ -223,12 +284,13 @@ func (q *Queries) GetBookByBookID(ctx context.Context, bookID int64) (Book, erro
 		&i.GoogleID,
 		&i.Data,
 		&i.SeriesID,
+		&i.IsMissing,
 	)
 	return i, err
 }
 
 const getBooksBySeries = `-- name: GetBooksBySeries :many
-SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id, is_missing FROM books
 WHERE series_id = ?
 ORDER BY series_number ASC
 `
@@ -259,6 +321,7 @@ func (q *Queries) GetBooksBySeries(ctx context.Context, seriesID *int64) ([]Book
 			&i.GoogleID,
 			&i.Data,
 			&i.SeriesID,
+			&i.IsMissing,
 		); err != nil {
 			return nil, err
 		}
@@ -405,7 +468,7 @@ func (q *Queries) LinkSeriesAuthor(ctx context.Context, arg LinkSeriesAuthorPara
 }
 
 const listBooks = `-- name: ListBooks :many
-SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id FROM books
+SELECT id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id, is_missing FROM books
 ORDER BY title ASC
 LIMIT ? OFFSET ?
 `
@@ -441,6 +504,7 @@ func (q *Queries) ListBooks(ctx context.Context, arg ListBooksParams) ([]Book, e
 			&i.GoogleID,
 			&i.Data,
 			&i.SeriesID,
+			&i.IsMissing,
 		); err != nil {
 			return nil, err
 		}
@@ -543,8 +607,8 @@ func (q *Queries) UpsertAuthor(ctx context.Context, name string) (Author, error)
 }
 
 const upsertBook = `-- name: UpsertBook :one
-INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO books (book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, is_missing)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(book_id) DO UPDATE SET
     title = excluded.title,
     description = excluded.description,
@@ -558,8 +622,9 @@ ON CONFLICT(book_id) DO UPDATE SET
     hardcover_book_id = excluded.hardcover_book_id,
     goodreads_id = excluded.goodreads_id,
     google_id = excluded.google_id,
-    data = excluded.data
-RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id
+    data = excluded.data,
+    is_missing = excluded.is_missing
+RETURNING id, book_id, title, description, series_name, series_number, asin, isbn10, isbn13, language, hardcover_id, hardcover_book_id, goodreads_id, google_id, data, series_id, is_missing
 `
 
 type UpsertBookParams struct {
@@ -577,6 +642,7 @@ type UpsertBookParams struct {
 	GoodreadsID     *string     `json:"goodreads_id"`
 	GoogleID        *string     `json:"google_id"`
 	Data            interface{} `json:"data"`
+	IsMissing       *bool       `json:"is_missing"`
 }
 
 func (q *Queries) UpsertBook(ctx context.Context, arg UpsertBookParams) (Book, error) {
@@ -595,6 +661,7 @@ func (q *Queries) UpsertBook(ctx context.Context, arg UpsertBookParams) (Book, e
 		arg.GoodreadsID,
 		arg.GoogleID,
 		arg.Data,
+		arg.IsMissing,
 	)
 	var i Book
 	err := row.Scan(
@@ -614,6 +681,7 @@ func (q *Queries) UpsertBook(ctx context.Context, arg UpsertBookParams) (Book, e
 		&i.GoogleID,
 		&i.Data,
 		&i.SeriesID,
+		&i.IsMissing,
 	)
 	return i, err
 }
