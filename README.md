@@ -1,222 +1,161 @@
-# BiblioReads Go Library
+# BookScraping
 
-A Go library for scraping book data from Goodreads. This is a Go alternative to the [BiblioReads](https://github.com/nesaku/BiblioReads) project, built using **goquery** (the Go equivalent of Cheerio).
+A full-stack application for managing and synchronizing book libraries from Booklore (e-book management system) with Goodreads integration. Features a Go backend, TypeScript/Svelte frontend, and SQLite database.
 
 ## Features
 
-- 📚 Fetch book details (title, author, rating, description, ISBN, genres, etc.)
-- ✍️ Get author information and their books
-- 🔍 Search for books and authors
-- 💬 Retrieve quotes from books
-- 📖 Get series information
-- 📝 Fetch Goodreads lists
-- 🚀 No API key required (web scraping)
-- 🔒 Privacy-focused (proxy your requests)
+- 📚 Sync book library from Booklore server to local database
+- 📖 Browse and manage book collections with series organization
+- 🔍 Complete series with missing books from Goodreads
+- 🎨 Modern web interface for browsing and management
+- 🔄 Real-time sync status with Server-Sent Events
+- 🚀 Single executable with embedded frontend
+- 🔒 Local-first architecture (self-hosted)
 
-## Installation
+## Architecture
+
+### High-Level Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Frontend (SvelteKit + TypeScript)          │
+│  ├─ Pages: Books, Series, Configuration                    │
+│  ├─ Real-time updates via Server-Sent Events               │
+│  └─ Stores: Config (credentials), WebSocket (SSE)          │
+└─────────────────────────────────────────────────────────────┘
+                       ↓ (HTTP REST API)
+┌─────────────────────────────────────────────────────────────┐
+│                   Backend (Go HTTP Server)                  │
+│  ├─ /api/config        → Credential management             │
+│  ├─ /api/books         → List/search books with authors    │
+│  ├─ /api/series        → List/manage series                │
+│  ├─ /api/sync          → Sync from Booklore to SQLite      │
+│  ├─ /api/events        → Server-Sent Events stream         │
+│  └─ Integrations: Booklore API (JWT), Goodreads (scrape)   │
+└─────────────────────────────────────────────────────────────┘
+         ↓                    ↓                    ↓
+    ┌─────────┐        ┌──────────────┐    ┌──────────────┐
+    │ SQLite  │        │  Booklore    │    │  Goodreads   │
+    │   DB    │        │    API       │    │   .com       │
+    └─────────┘        └──────────────┘    └──────────────┘
+```
+
+### Key Components
+
+#### Backend (Go)
+- **Server** (`pkg/server`): HTTP handlers for books, series, config, and sync operations
+- **Database** (`pkg/db`): Type-safe SQL queries via sqlc
+- **Booklore Client** (`pkg/booklore`): API authentication and book fetching
+- **Goodreads Client** (`pkg/goodreads`): Web scraper for series and books
+
+#### Frontend (SvelteKit)
+- **Pages**: Books list, book details, series list, series details, configuration
+- **Stores**: Configuration (Booklore credentials), WebSocket (SSE events)
+- **API Client**: Centralized TypeScript API layer
+
+#### Database (SQLite)
+- **Tables**: `books`, `authors`, `series`, `book_authors` (junction), `series_authors` (junction), `configuration`
+- **Key Fields**: Books track `is_missing` (from Goodreads but not owned), series link to Goodreads IDs
+
+### Data Flow
+
+**Sync from Booklore:**
+1. User provides Booklore credentials in UI
+2. Backend authenticates with Booklore API (JWT)
+3. Fetches all books with authors and series information
+4. Upserts to SQLite with proper relationships
+5. Real-time progress via SSE
+
+**Complete Series from Goodreads:**
+1. User clicks "Fetch from Goodreads" on series detail
+2. Backend scrapes Goodreads series page (HTML parsing)
+3. Identifies missing books (not in local DB)
+4. Creates "missing" book records (`is_missing=1`)
+5. Returns sync statistics to frontend
+
+### Tech Stack
+
+- **Backend**: Go 1.25+, net/http, sqlc, goquery
+- **Frontend**: SvelteKit, Svelte 5, TypeScript, Vite
+- **Database**: SQLite (modernc.org/sqlite)
+- **Build**: Make, pnpm, Vite
+
+## Setup & Development
+
+### Prerequisites
+
+- Go 1.25+
+- Node.js 18+ and pnpm
+- Make
+
+### Build
 
 ```bash
-go get github.com/amalgamated-tools/bookscraping
+# Build everything
+make build
+
+# Build just backend
+go build -o bin/bookscraping-server ./cmd/server
+
+# Build just frontend
+cd frontend && pnpm install && pnpm run build
 ```
 
-## Dependencies
-
-This library uses [goquery](https://github.com/PuerkitoBio/goquery) for HTML parsing:
+### Development
 
 ```bash
-go get github.com/PuerkitoBio/goquery
+# Run dev environment (requires overmind or foreman)
+make dev
+
+# Or manually:
+# Terminal 1 - Backend with auto-reload
+cd /path/to/repo && air
+
+# Terminal 2 - Frontend dev server
+cd frontend && pnpm dev
 ```
 
-## Quick Start
+Frontend dev server (port 5173) proxies API calls to backend (port 8080).
 
-```go
-package main
+### Database
 
-import (
-    "fmt"
-    "log"
-    
-    "github.com/amalgamated-tools/bookscraping"
-)
+```bash
+# Run migrations
+go run ./cmd/cli migrate
 
-func main() {
-    // Create a new client
-    client := bookscraping.NewClient()
-    
-    // Get a book by ID
-    book, err := client.GetBook("5907") // The Hobbit
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    fmt.Printf("Title: %s\n", book.Title)
-    fmt.Printf("Author: %s\n", book.Authors[0].Name)
-    fmt.Printf("Rating: %.2f\n", book.Rating)
-}
+# Generate type-safe queries from SQL
+make sqlc
 ```
 
-## Usage Examples
+## Running
 
-### Get Book Details
-
-```go
-// By book ID
-book, err := client.GetBook("5907")
-
-// By full URL
-book, err := client.GetBookByURL("https://www.goodreads.com/book/show/5907.The_Hobbit")
+```bash
+./bin/bookscraping-server
 ```
 
-### Search for Books
+Server starts on `http://localhost:8080`
 
-```go
-// Search and get all results
-results, err := client.Search("Harry Potter", 1)
+Configure Booklore credentials in the `/config` page, then sync your library.
 
-// Or use convenience method for books only
-books, err := client.SearchBooks("Harry Potter")
+## Goodreads Integration
 
-for _, book := range books {
-    fmt.Printf("%s by %s\n", book.Title, book.Authors[0].Name)
-}
+This project includes Goodreads web scraping capabilities (via `pkg/goodreads`) to:
+- Fetch series information by series ID
+- Search for books and authors
+- Parse book details from Goodreads pages
+
+Uses [goquery](https://github.com/PuerkitoBio/goquery) for HTML parsing. Since Goodreads deprecated their public API, web scraping is used to access series data. Respect Goodreads' terms of service and rate limits.
+
+## Environment Variables
+
+```bash
+# Server
+PORT=8080                          # HTTP server port
+LOG_LEVEL=info                     # Log level (debug, info, warn, error)
+
+# Database
+DB_PATH=./bookscraping.db          # SQLite database file path
 ```
-
-### Get Author Information
-
-```go
-author, err := client.GetAuthor("656983") // J.R.R. Tolkien
-
-fmt.Printf("Name: %s\n", author.Name)
-fmt.Printf("Born: %s\n", author.BornAt)
-fmt.Printf("Bio: %s\n", author.Bio)
-fmt.Printf("Average Rating: %.2f\n", author.AverageRating)
-```
-
-### Get Author's Books
-
-```go
-books, err := client.GetAuthorBooks("656983", 1) // page 1
-
-for _, book := range books {
-    fmt.Printf("%s (%.2f stars)\n", book.Title, book.Rating)
-}
-```
-
-### Get Book Quotes
-
-```go
-quotes, err := client.GetQuotes("5907", 1) // page 1
-
-for _, quote := range quotes {
-    fmt.Printf("Quote: %s\n", quote.Text)
-    fmt.Printf("Likes: %d\n", quote.Likes)
-}
-```
-
-### Get Series Information
-
-```go
-series, err := client.GetSeries("66") // The Lord of the Rings
-
-fmt.Printf("Series: %s\n", series.Name)
-fmt.Printf("Books: %d\n", series.BookCount)
-
-for _, seriesBook := range series.Books {
-    fmt.Printf("Book %s: %s\n", seriesBook.Position, seriesBook.Book.Title)
-}
-```
-
-### Get Goodreads Lists
-
-```go
-list, err := client.GetList("1.Best_Books_Ever")
-
-fmt.Printf("List: %s\n", list.Title)
-fmt.Printf("Books: %d\n", list.BookCount)
-```
-
-## Configuration
-
-### Custom Timeout
-
-```go
-client := bookscraping.NewClient().WithTimeout(60 * time.Second)
-```
-
-### Custom User Agent
-
-```go
-client := bookscraping.NewClient().WithUserAgent("MyApp/1.0")
-```
-
-## Data Structures
-
-### Book
-
-```go
-type Book struct {
-    ID             string
-    Title          string
-    Authors        []Author
-    ISBN           string
-    ISBN13         string
-    Description    string
-    Rating         float64
-    RatingCount    int
-    ReviewCount    int
-    PageCount      int
-    PublishedYear  string
-    Publisher      string
-    Language       string
-    CoverImageURL  string
-    Genres         []string
-    SeriesName     string
-    SeriesPosition string
-    URL            string
-}
-```
-
-### Author
-
-```go
-type Author struct {
-    ID              string
-    Name            string
-    URL             string
-    ImageURL        string
-    Bio             string
-    BornAt          string
-    DiedAt          string
-    Website         string
-    Genres          []string
-    InfluencedBy    []string
-    AverageRating   float64
-    RatingCount     int
-    ReviewCount     int
-    FansCount       int
-    RelatedAuthors  []string
-}
-```
-
-## How It Works
-
-This library scrapes Goodreads pages using goquery (jQuery-like selectors for Go). Since Goodreads deprecated their public API in 2020, web scraping is the only way to programmatically access their data.
-
-**Note:** Web scraping may be affected by changes to Goodreads' HTML structure. Always respect Goodreads' terms of service and rate limits.
-
-## Comparison with BiblioReads
-
-| Feature | BiblioReads (Node.js) | This Library (Go) |
-|---------|----------------------|-------------------|
-| Language | JavaScript/TypeScript | Go |
-| HTML Parser | Cheerio | goquery |
-| Use Case | Web front-end | Backend/CLI/Library |
-| Dependencies | Next.js, React | Minimal (just goquery) |
-| Performance | Good | Excellent |
-
-## Examples
-
-See the [examples](examples/) directory for complete working examples.
 
 ## License
 
@@ -224,13 +163,4 @@ GNU AGPLv3 - See LICENSE for details
 
 ## Disclaimer
 
-This library is not affiliated with Goodreads or Amazon. It scrapes publicly available data from Goodreads. Please use responsibly and respect Goodreads' terms of service.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Inspired By
-
-- [BiblioReads](https://github.com/nesaku/BiblioReads) - Privacy-focused Goodreads front-end
-- [goquery](https://github.com/PuerkitoBio/goquery) - jQuery-like HTML parsing for Go
+This application is not affiliated with Goodreads, Amazon, or Booklore. It scrapes publicly available data from Goodreads. Please use responsibly and respect their terms of service.
