@@ -5,26 +5,21 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/amalgamated-tools/bookscraping/pkg/config"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/server"
 	_ "modernc.org/sqlite"
 )
 
 func main() {
-	// Load configuration
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		slog.Warn("Could not load config, using defaults", "error", err)
-	}
-
 	// Get database path from environment or use default
-	dbPath := os.Getenv("DATABASE_PATH")
+	dbPath := os.Getenv("DATABASE_URL")
 	if dbPath == "" {
+		slog.Info("DATABASE_URL not set, using default path './db/bookscraping.db'")
 		dbPath = "./db/bookscraping.db"
 	}
 
 	// Open database
+	slog.Info("Opening database", "path", dbPath)
 	sqlDB, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		slog.Error("Failed to open database", "path", dbPath, "error", err)
@@ -39,12 +34,13 @@ func main() {
 	addr := os.Getenv("SERVER_ADDR")
 	if addr == "" {
 		addr = ":8080"
+		slog.Info("SERVER_ADDR not set, using default address ':8080'")
 	}
 
 	// Start server
 	srv := server.NewServer(
-		server.WithConfig(cfg),
 		server.WithQueries(queries),
+		server.WithAddr(addr),
 	)
 
 	slog.Info("Starting BookScraping server",
@@ -52,9 +48,7 @@ func main() {
 		"database", dbPath,
 	)
 
-	_ = cfg // Use config if needed
-
-	if err := srv.Start(addr); err != nil {
+	if err := srv.Start(); err != nil {
 		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

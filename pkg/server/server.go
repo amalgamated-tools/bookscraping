@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
-	"github.com/amalgamated-tools/bookscraping/pkg/config"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
 )
@@ -24,7 +23,7 @@ var distFS embed.FS
 
 // Server represents the HTTP server with embedded frontend
 type Server struct {
-	cfg      *config.Config
+	addr     string
 	queries  *db.Queries
 	grClient *goodreads.Client
 	blClient *booklore.Client
@@ -144,9 +143,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Start starts the server on the given address
-func (s *Server) Start(addr string) error {
-	slog.Info("Starting server", "address", addr)
-	return http.ListenAndServe(addr, s)
+func (s *Server) Start() error {
+	slog.Info("Starting server", "address", s.addr)
+	return http.ListenAndServe(s.addr, s)
 }
 
 // JSON response helpers
