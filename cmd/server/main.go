@@ -42,7 +42,10 @@ func main() {
 	}
 
 	// Start server
-	srv := server.NewServer(queries)
+	srv := server.NewServer(
+		server.WithConfig(cfg),
+		server.WithQueries(queries),
+	)
 
 	slog.Info("Starting BookScraping server",
 		"address", addr,

@@ -26,7 +26,7 @@
 			series_name: b.metadata.seriesName,
 			series_number: b.metadata.seriesNumber,
 			// We don't have the series ID in the book metadata from Booklore yet
-			// series_id: b.metadata.seriesId, 
+			// series_id: b.metadata.seriesId,
 			asin: b.metadata.asin,
 			isbn10: b.metadata.isbn10,
 			isbn13: b.metadata.isbn13,
@@ -45,7 +45,7 @@
 		try {
 			// We always just load from our own API now
 			isConfigured = true;
-			
+
 			const response = await api.getBooks(page, perPage);
 			books = response.data ?? [];
 			total = response.total;
@@ -78,7 +78,7 @@
 	async function handleRefresh() {
 		loading = true;
 		error = null;
-		
+
 		try {
 			// Reload the local book list
 			page = 1;
@@ -167,10 +167,8 @@
 		<div class="error">{error}</div>
 	{:else}
 		<p class="count">
-			Showing {(page - 1) * perPage + 1}-{Math.min(
-				page * perPage,
-				total,
-			)} of {total} books
+			Showing {(page - 1) * perPage + 1}-{Math.min(page * perPage, total)}
+			of {total} books
 		</p>
 
 		<div class="book-grid">
@@ -192,13 +190,18 @@
 						<div class="series-section">
 							<p class="series">
 								{#if book.series_id}
-									<a href="/series/{book.series_id}" class="series-link">
+									<a
+										href="/series/{book.series_id}"
+										class="series-link"
+									>
 										{book.series_name}
 									</a>
 								{:else}
 									{book.series_name}
 								{/if}
-								<span class="series-number">#{book.series_number}</span>
+								<span class="series-number"
+									>#{book.series_number}</span
+								>
 							</p>
 						</div>
 					{/if}
@@ -219,7 +222,9 @@
 							</a>
 						{/if}
 						{#if book.asin}
-							<span class="badge amazon" title={book.asin}>ASIN</span>
+							<span class="badge amazon" title={book.asin}
+								>ASIN</span
+							>
 						{/if}
 						{#if book.hardcover_id}
 							<a
@@ -259,15 +264,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-	}
-
-	.source-badge {
-		font-size: 0.8rem;
-		padding: 0.25rem 0.5rem;
-		background: #e2e8f0;
-		color: #4a5568;
-		border-radius: 4px;
-		font-weight: 500;
 	}
 
 	.books-page h1 {

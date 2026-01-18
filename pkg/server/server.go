@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
+	"github.com/amalgamated-tools/bookscraping/pkg/config"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
 )
@@ -23,6 +24,7 @@ var distFS embed.FS
 
 // Server represents the HTTP server with embedded frontend
 type Server struct {
+	cfg      *config.Config
 	queries  *db.Queries
 	grClient *goodreads.Client
 	blClient *booklore.Client
@@ -31,25 +33,33 @@ type Server struct {
 }
 
 // NewServer creates a new server instance
-func NewServer(queries *db.Queries) *Server {
-	blClient := booklore.NewClient(
-		os.Getenv("BOOKLORE_SERVER"),
-		os.Getenv("BOOKLORE_USERNAME"),
-		os.Getenv("BOOKLORE_PASSWORD"),
-	)
+func NewServer(opts ...ServerOption) *Server {
 	s := &Server{
-		queries:  queries,
-		grClient: goodreads.NewClient(),
-		blClient: blClient,
-		mux:      http.NewServeMux(),
-		eventCh:  make(chan string, 100),
+		mux:     http.NewServeMux(),
+		eventCh: make(chan string, 100),
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	if s.blClient == nil {
+		bookloreClient := booklore.NewClient(
+			os.Getenv("BOOKLORE_SERVER"),
+			os.Getenv("BOOKLORE_USERNAME"),
+			os.Getenv("BOOKLORE_PASSWORD"),
+		)
+		s.blClient = bookloreClient
+	}
+
 	s.setupRoutes()
 	return s
 }
 
 func (s *Server) setupRoutes() {
 	// API routes
+	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
+	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
+
 	s.mux.HandleFunc("GET /api/books", s.handleListBooks)
 	s.mux.HandleFunc("GET /api/books/{id}", s.handleGetBook)
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
@@ -57,8 +67,7 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("GET /api/series/{id}/books", s.handleGetSeriesBooks)
 	s.mux.HandleFunc("POST /api/series/{id}/goodreads", s.handleGetSeriesFromGoodreads)
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)
-	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
-	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
+
 	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
 
 	s.mux.HandleFunc("GET /api/events", s.handleEvents)
