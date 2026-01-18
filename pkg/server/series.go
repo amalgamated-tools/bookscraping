@@ -17,6 +17,12 @@ type SeriesWithAuthors struct {
 	Authors []string `json:"authors"`
 }
 
+// BookWithAuthors wraps a Book with its authors
+type BookWithAuthors struct {
+	*db.Book
+	Authors []string `json:"authors"`
+}
+
 // SyncSeriesResponse contains the result of syncing a series with Goodreads
 type SyncSeriesResponse struct {
 	Status          string `json:"status"`

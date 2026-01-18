@@ -90,12 +90,12 @@
 
 	<form onsubmit={handleSave} class="config-form">
 		<div class="form-group">
-			<label for="serverUrl">Server URL</label>
+			<label for="serverUrl">Booklore Server URL</label>
 			<input
 				id="serverUrl"
 				type="url"
 				bind:value={serverUrl}
-				placeholder="https://example.com"
+				placeholder="https://booklore.example.com"
 				required
 			/>
 		</div>

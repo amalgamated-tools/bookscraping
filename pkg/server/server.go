@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -40,9 +39,6 @@ func NewServer(opts ...ServerOption) *Server {
 	}
 
 	if s.blClient == nil {
-		// Initialize booklore client with hybrid approach:
-		// 1. Try to load from database first
-		// 2. Fall back to environment variables
 		serverURL := ""
 		username := ""
 		password := ""
@@ -50,7 +46,10 @@ func NewServer(opts ...ServerOption) *Server {
 		ctx := context.Background()
 
 		// Try to get config from database if queries are available
-		if s.queries != nil {
+		if s.queries == nil {
+			slog.Warn("No database queries available, BookLore client will have no configuration")
+		} else {
+			slog.Info("Loading BookLore configuration from database")
 			dbServerURL, err := s.queries.GetConfig(ctx, "serverUrl")
 			if err == nil && dbServerURL != "" {
 				serverURL = dbServerURL
@@ -65,17 +64,6 @@ func NewServer(opts ...ServerOption) *Server {
 			}
 		}
 
-		// Fall back to environment variables if not found in database
-		if serverURL == "" {
-			serverURL = os.Getenv("BOOKLORE_SERVER")
-		}
-		if username == "" {
-			username = os.Getenv("BOOKLORE_USERNAME")
-		}
-		if password == "" {
-			password = os.Getenv("BOOKLORE_PASSWORD")
-		}
-
 		bookloreClient := booklore.NewClient(serverURL, username, password)
 		s.blClient = bookloreClient
 	}
@@ -88,17 +76,14 @@ func (s *Server) setupRoutes() {
 	// API routes
 	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
-
-	s.mux.HandleFunc("GET /api/books", s.handleListBooks)
-	s.mux.HandleFunc("GET /api/books/{id}", s.handleGetBook)
+	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
 
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
 	s.mux.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
 	s.mux.HandleFunc("GET /api/series/{id}/books", s.handleGetSeriesBooks)
 	s.mux.HandleFunc("POST /api/series/{id}/goodreads", s.handleGetSeriesFromGoodreads)
-	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
-	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
+	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
 	s.mux.HandleFunc("GET /api/events", s.handleEvents)
 	s.mux.HandleFunc("POST /api/events/trigger", s.handleTriggerEvent)
