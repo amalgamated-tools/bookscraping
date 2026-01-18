@@ -2,7 +2,7 @@
     import { api, type Book } from "$lib/api";
     import { browser } from "$app/environment";
     import { onMount } from "svelte";
-    import { configStore, loadConfig } from "$lib/stores/configStore";
+    import { configStore } from "$lib/stores/configStore";
 
     let bookCount = $state(0);
     let seriesCount = $state(0);
@@ -13,8 +13,7 @@
 
     onMount(async () => {
         if (browser) {
-            // Load config and subscribe to check if configured
-            await loadConfig();
+            // Subscribe to config changes - config is already loaded by layout
             const unsubscribe = configStore.subscribe(config => {
                 isConfigured = !!(config.serverUrl && config.username && config.password);
             });

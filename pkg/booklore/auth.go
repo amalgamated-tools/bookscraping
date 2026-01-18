@@ -24,11 +24,6 @@ type Token struct {
 // if the file exists, it reads the file and unmarshals into c.token and validates the token
 func (c *Client) Login() error {
 	slog.Info("Logging in to BookLore...")
-	err := c.validateCredentials()
-	if err == nil {
-		// valid credentials found
-		return nil
-	}
 	return c.performLogin()
 }
 
@@ -87,33 +82,6 @@ func (c *Client) RefreshToken() error {
 	return nil
 }
 
-func (c *Client) validateCredentials() error {
-	// let's check if the credentials.json file exists
-	info, err := os.Stat(credentialsFile)
-
-	if err == nil && !info.IsDir() {
-		// the file exists, read it
-		data, err := os.ReadFile(credentialsFile)
-		if err == nil {
-			// the file was read successfully, unmarshal it
-			var token Token
-			err = json.Unmarshal(data, &token)
-			if err == nil {
-				c.token = token
-				// validate the token
-				err = c.ValidateToken()
-				if err == nil {
-					// the token is valid, return
-					return nil
-				}
-				// the token is not valid, let's try to refresh it
-				return c.RefreshToken()
-			} // the file was not unmarshaled successfully
-		} // the file was not read successfully
-	} // the file does not exist or is invalid
-	return fmt.Errorf("no valid credentials found")
-}
-
 func (c *Client) performLogin() error {
 	payload := strings.NewReader(`{"username": "` + c.username + `", "password": "` + c.password + `"}`)
 	url := c.baseURL + "/api/v1/auth/login"
@@ -135,14 +103,6 @@ func (c *Client) performLogin() error {
 	}
 
 	c.token = token
-	// save the token to credentials.json
-	data, err := json.MarshalIndent(token, "", "  ")
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile(credentialsFile, data, 0644)
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
