@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
@@ -19,20 +20,23 @@ type ConfigRequest struct {
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
+	// Try to get from database first
 	serverUrl, err := s.queries.GetConfig(ctx, "serverUrl")
-	if err != nil {
-		// If not found, just return empty strings, not an error
-		serverUrl = ""
+	if err != nil || serverUrl == "" {
+		// Fall back to environment variable
+		serverUrl = os.Getenv("BOOKLORE_SERVER")
 	}
 
 	username, err := s.queries.GetConfig(ctx, "username")
-	if err != nil {
-		username = ""
+	if err != nil || username == "" {
+		// Fall back to environment variable
+		username = os.Getenv("BOOKLORE_USERNAME")
 	}
 
 	password, err := s.queries.GetConfig(ctx, "password")
-	if err != nil {
-		password = ""
+	if err != nil || password == "" {
+		// Fall back to environment variable
+		password = os.Getenv("BOOKLORE_PASSWORD")
 	}
 
 	writeJSON(w, ConfigRequest{

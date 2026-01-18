@@ -43,11 +43,43 @@ func NewServer(opts ...ServerOption) *Server {
 	}
 
 	if s.blClient == nil {
-		bookloreClient := booklore.NewClient(
-			os.Getenv("BOOKLORE_SERVER"),
-			os.Getenv("BOOKLORE_USERNAME"),
-			os.Getenv("BOOKLORE_PASSWORD"),
-		)
+		// Initialize booklore client with hybrid approach:
+		// 1. Try to load from database first
+		// 2. Fall back to environment variables
+		serverURL := ""
+		username := ""
+		password := ""
+
+		ctx := context.Background()
+
+		// Try to get config from database if queries are available
+		if s.queries != nil {
+			dbServerURL, err := s.queries.GetConfig(ctx, "serverUrl")
+			if err == nil && dbServerURL != "" {
+				serverURL = dbServerURL
+			}
+			dbUsername, err := s.queries.GetConfig(ctx, "username")
+			if err == nil && dbUsername != "" {
+				username = dbUsername
+			}
+			dbPassword, err := s.queries.GetConfig(ctx, "password")
+			if err == nil && dbPassword != "" {
+				password = dbPassword
+			}
+		}
+
+		// Fall back to environment variables if not found in database
+		if serverURL == "" {
+			serverURL = os.Getenv("BOOKLORE_SERVER")
+		}
+		if username == "" {
+			username = os.Getenv("BOOKLORE_USERNAME")
+		}
+		if password == "" {
+			password = os.Getenv("BOOKLORE_PASSWORD")
+		}
+
+		bookloreClient := booklore.NewClient(serverURL, username, password)
 		s.blClient = bookloreClient
 	}
 

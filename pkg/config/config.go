@@ -11,18 +11,12 @@ type Config struct {
 
 func LoadConfig() (*Config, error) {
 	c := &Config{}
+	// Load Booklore config from environment variables (optional - can be set via web UI later)
 	c.BookloreServer = os.Getenv("BOOKLORE_SERVER")
-	if c.BookloreServer == "" {
-		return nil, ErrMissingBookloreServer
-	}
 	c.BookloreUsername = os.Getenv("BOOKLORE_USERNAME")
-	if c.BookloreUsername == "" {
-		return nil, ErrMissingBookloreUsername
-	}
 	c.BooklorePassword = os.Getenv("BOOKLORE_PASSWORD")
-	if c.BooklorePassword == "" {
-		return nil, ErrMissingBooklorePassword
-	}
+
+	// Database URL is required
 	c.DatabaseURL = os.Getenv("DATABASE_URL")
 	if c.DatabaseURL == "" {
 		return nil, ErrMissingDatabaseURL
@@ -31,10 +25,7 @@ func LoadConfig() (*Config, error) {
 }
 
 var (
-	ErrMissingBookloreServer   = &ConfigError{"BOOKLORE_SERVER is required"}
-	ErrMissingBookloreUsername = &ConfigError{"BOOKLORE_USERNAME is required"}
-	ErrMissingBooklorePassword = &ConfigError{"BOOKLORE_PASSWORD is required"}
-	ErrMissingDatabaseURL      = &ConfigError{"DATABASE_URL is required"}
+	ErrMissingDatabaseURL = &ConfigError{"DATABASE_URL is required"}
 )
 
 type ConfigError struct {
