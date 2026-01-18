@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -18,7 +17,7 @@ type ConfigRequest struct {
 }
 
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	// Try to get from database first
 	serverUrl, err := s.queries.GetConfig(ctx, "serverUrl")
@@ -53,7 +52,7 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx := r.Context()
 
 	// Save each config item
 	err := s.queries.SetConfig(ctx, db.SetConfigParams{
@@ -104,7 +103,7 @@ func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx := r.Context()
 
 	// Create a temporary client with the provided credentials
 	client := booklore.NewClient(req.ServerURL, req.Username, req.Password)

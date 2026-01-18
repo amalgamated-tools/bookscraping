@@ -21,7 +21,7 @@ var distFS embed.FS
 // Server represents the HTTP server with embedded frontend
 type Server struct {
 	addr     string
-	queries  *db.Queries
+	queries  db.Querier
 	grClient *goodreads.Client
 	blClient *booklore.Client
 	mux      *http.ServeMux
