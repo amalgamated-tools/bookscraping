@@ -1,26 +1,28 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
 	import { api } from "$lib/api";
-	import { configStore, loadConfig, resetConfigCache } from "$lib/stores/configStore";
+	import {
+		configStore,
+		loadConfig,
+		resetConfigCache,
+	} from "$lib/stores/configStore";
 
 	let serverUrl = $state("");
 	let username = $state("");
 	let password = $state("");
 	let success = $state(false);
 	let testing = $state(false);
-	let syncing = $state(false);
 	let testMessage = $state("");
 	let testSuccess = $state(false);
-	let syncMessage = $state("");
-	let syncSuccess = $state(false);
 
 	$effect(() => {
 		if (browser) {
 			// Load config once when page mounts
+			console.log("Config page mounted, loading config...");
 			loadConfig();
 
 			// Subscribe to config store to populate form
-			const unsubscribe = configStore.subscribe(config => {
+			const unsubscribe = configStore.subscribe((config) => {
 				serverUrl = config.serverUrl || "";
 				username = config.username || "";
 				password = config.password || "";
@@ -29,28 +31,6 @@
 			return unsubscribe;
 		}
 	});
-
-	async function handleSync() {
-		// Sync without sending credentials if they are already saved on the server
-		// If the user has typed something new but not saved, we might want to warn them
-		// For now, let's assume if fields are filled, we send them, otherwise we rely on backend config
-		
-		syncing = true;
-		syncMessage = "";
-		
-		try {
-			// We can now call sync without arguments if we want the backend to use stored config
-			// But since the form has the values, we can send them too to be safe/explicit
-			await api.syncBooks(serverUrl, username, password);
-			syncSuccess = true;
-			syncMessage = "Sync completed successfully!";
-		} catch (e) {
-			syncSuccess = false;
-			syncMessage = e instanceof Error ? e.message : "Sync failed";
-		} finally {
-			syncing = false;
-		}
-	}
 
 	async function handleTest() {
 		if (!serverUrl || !username || !password) {
@@ -61,9 +41,13 @@
 
 		testing = true;
 		testMessage = "";
-		
+
 		try {
-			const response = await api.testConnection(serverUrl, username, password);
+			const response = await api.testConnection(
+				serverUrl,
+				username,
+				password,
+			);
 			testSuccess = true;
 			testMessage = response.message || "Connection successful!";
 		} catch (e) {
@@ -76,21 +60,20 @@
 
 	async function handleSave(e: Event) {
 		e.preventDefault();
-		
+
 		if (browser) {
 			try {
 				// Save to backend only - the backend will handle authentication
 				await api.saveConfig(serverUrl, username, password);
-				
+
 				// Update the store with new config
 				resetConfigCache();
 				await loadConfig();
-				
+
 				success = true;
 				setTimeout(() => {
 					success = false;
 				}, 3000);
-
 			} catch (e) {
 				console.error("Failed to save config:", e);
 			}
@@ -140,27 +123,20 @@
 		</div>
 
 		<div class="button-group">
-			<button type="button" class="test-btn" onclick={handleTest} disabled={testing}>
+			<button
+				type="button"
+				class="test-btn"
+				onclick={handleTest}
+				disabled={testing}
+			>
 				{testing ? "Testing..." : "Test Connection"}
 			</button>
 			<button type="submit">Save Configuration</button>
 		</div>
 
-		<div class="button-group" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee;">
-			<button type="button" onclick={handleSync} disabled={syncing}>
-				{syncing ? "Syncing..." : "Sync Books to Database"}
-			</button>
-		</div>
-
 		{#if testMessage}
 			<div class="message {testSuccess ? 'success' : 'error'}">
 				{testMessage}
-			</div>
-		{/if}
-
-		{#if syncMessage}
-			<div class="message {syncSuccess ? 'success' : 'error'}">
-				{syncMessage}
 			</div>
 		{/if}
 
