@@ -167,6 +167,7 @@ func shouldSkipStatement(ctx context.Context, db *sql.DB, stmt string) bool {
 	if strings.Contains(stmtUpper, "ALTER TABLE") && strings.Contains(stmtUpper, "ADD COLUMN") {
 		// Extract table name and column name from statement
 		// Expected format: ALTER TABLE table_name ADD COLUMN column_name ...
+		// Note: This parser expects simple, unquoted identifiers as used in our migrations
 		tableName, columnName := parseAlterTableAddColumn(stmt)
 		if tableName != "" && columnName != "" {
 			if columnExists(ctx, db, tableName, columnName) {
@@ -175,17 +176,17 @@ func shouldSkipStatement(ctx context.Context, db *sql.DB, stmt string) bool {
 		}
 	}
 
-	// Check for CREATE INDEX (these have IF NOT EXISTS, so they're already idempotent)
-	// But we can still check to be safe
-	if strings.Contains(stmtUpper, "CREATE INDEX") && strings.Contains(stmtUpper, "IF NOT EXISTS") {
-		// These are already idempotent, no need to skip
-		return false
-	}
+	// CREATE INDEX statements with IF NOT EXISTS are already idempotent,
+	// so we don't need to check for their existence
 
 	return false
 }
 
 // parseAlterTableAddColumn extracts table and column names from ALTER TABLE ADD COLUMN statement
+// Note: This parser assumes simple, unquoted identifiers as used in our migrations.
+// It will not correctly handle quoted identifiers (e.g., "my table", [my column]) or
+// complex SQL with embedded quotes. For our use case with straightforward migration files,
+// this simple parser is sufficient.
 func parseAlterTableAddColumn(stmt string) (tableName, columnName string) {
 	const (
 		alterTableLen = len("ALTER TABLE")
@@ -264,11 +265,23 @@ func columnExists(ctx context.Context, db *sql.DB, tableName, columnName string)
 }
 
 // isValidSQLiteIdentifier checks if a string is a valid SQLite identifier (table/column name)
-// Valid identifiers contain only alphanumeric characters and underscores
+// Note: This only validates unquoted identifiers. Quoted identifiers (e.g., "my table", [my table])
+// are not supported by this validator but are also not used in our migrations.
+// Valid unquoted identifiers:
+// - Start with a letter (a-z, A-Z) or underscore
+// - Contain only letters, digits, and underscores
 func isValidSQLiteIdentifier(s string) bool {
 	if s == "" {
 		return false
 	}
+
+	// First character must be a letter or underscore (not a digit)
+	firstChar := rune(s[0])
+	if !((firstChar >= 'a' && firstChar <= 'z') || (firstChar >= 'A' && firstChar <= 'Z') || firstChar == '_') {
+		return false
+	}
+
+	// Remaining characters can be letters, digits, or underscores
 	for _, ch := range s {
 		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
 			return false
