@@ -89,6 +89,7 @@ func (c *Client) RefreshToken() error {
 }
 
 func (c *Client) performLogin() error {
+	slog.Info("Performing login request to BookLore server...")
 	payload := strings.NewReader(`{"username": "` + c.username + `", "password": "` + c.password + `"}`)
 	url := c.baseURL + "/api/v1/auth/login"
 	req, _ := http.NewRequest("POST", url, payload)
@@ -98,12 +99,21 @@ func (c *Client) performLogin() error {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		slog.Error("Login request failed", "error", err)
 		return err
+	}
+
+	// log the response status
+	slog.Info("Login response status", "status", res.Status)
+	if res.StatusCode != 200 {
+		slog.Error("Login failed", "status", res.Status)
+		return fmt.Errorf("login failed with status: %s", res.Status)
 	}
 
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
+		slog.Error("Failed to read login response body", "error", err)
 		return err
 	}
 	slog.Debug("Login response", "body", string(body))

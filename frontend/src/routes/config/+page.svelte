@@ -11,9 +11,8 @@
 	let username = $state("");
 	let password = $state("");
 	let success = $state(false);
-	let testing = $state(false);
-	let testMessage = $state("");
-	let testSuccess = $state(false);
+	let saving = $state(false);
+	let errorMessage = $state("");
 
 	$effect(() => {
 		if (browser) {
@@ -32,52 +31,44 @@
 		}
 	});
 
-	async function handleTest() {
-		if (!serverUrl || !username || !password) {
-			testMessage = "Please fill in all fields first";
-			testSuccess = false;
-			return;
-		}
-
-		testing = true;
-		testMessage = "";
-
-		try {
-			const response = await api.testConnection(
-				serverUrl,
-				username,
-				password,
-			);
-			testSuccess = true;
-			testMessage = response.message || "Connection successful!";
-		} catch (e) {
-			console.error("Test connection failed:", e);
-			testSuccess = false;
-			testMessage = e instanceof Error ? e.message : "Connection failed";
-		} finally {
-			testing = false;
-		}
-	}
-
 	async function handleSave(e: Event) {
 		e.preventDefault();
 
-		if (browser) {
-			try {
-				// Save to backend only - the backend will handle authentication
-				await api.saveConfig(serverUrl, username, password);
+		if (!browser) return;
 
-				// Update the store with new config
-				resetConfigCache();
-				await loadConfig();
+		// Reset previous errors
+		errorMessage = "";
 
-				success = true;
-				setTimeout(() => {
-					success = false;
-				}, 3000);
-			} catch (e) {
-				console.error("Failed to save config:", e);
-			}
+		if (!serverUrl || !username || !password) {
+			errorMessage = "Please fill in all fields";
+			return;
+		}
+
+		saving = true;
+
+		try {
+			// Test connection first before saving
+			console.log("Testing connection before save...");
+			await api.testConnection(serverUrl, username, password);
+
+			// If test passed, save to backend
+			console.log("Connection test passed, saving config...");
+			await api.saveConfig(serverUrl, username, password);
+
+			// Update the store with new config
+			resetConfigCache();
+			await loadConfig();
+
+			success = true;
+			errorMessage = "";
+			setTimeout(() => {
+				success = false;
+			}, 3000);
+		} catch (e) {
+			console.error("Failed to save config:", e);
+			errorMessage = e instanceof Error ? e.message : "Failed to save configuration";
+		} finally {
+			saving = false;
 		}
 	}
 </script>
@@ -98,6 +89,7 @@
 				bind:value={serverUrl}
 				placeholder="https://booklore.example.com"
 				required
+				disabled={saving}
 			/>
 		</div>
 
@@ -109,6 +101,7 @@
 				bind:value={username}
 				placeholder="username"
 				required
+				disabled={saving}
 			/>
 		</div>
 
@@ -120,24 +113,17 @@
 				bind:value={password}
 				placeholder="password"
 				required
+				disabled={saving}
 			/>
 		</div>
 
-		<div class="button-group">
-			<button
-				type="button"
-				class="test-btn"
-				onclick={handleTest}
-				disabled={testing}
-			>
-				{testing ? "Testing..." : "Test Connection"}
-			</button>
-			<button type="submit">Save Configuration</button>
-		</div>
+		<button type="submit" disabled={saving} class="save-btn">
+			{saving ? "Testing & Saving..." : "Save Configuration"}
+		</button>
 
-		{#if testMessage}
-			<div class="message {testSuccess ? 'success' : 'error'}">
-				{testMessage}
+		{#if errorMessage}
+			<div class="message error">
+				{errorMessage}
 			</div>
 		{/if}
 
@@ -185,14 +171,14 @@
 		border-color: #2c3e50;
 	}
 
-	.button-group {
-		display: flex;
-		gap: 1rem;
-		margin-bottom: 1rem;
+	.form-group input:disabled {
+		background-color: #f5f5f5;
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
-	button {
-		flex: 1;
+	.save-btn {
+		width: 100%;
 		padding: 0.75rem 1.5rem;
 		background: #2c3e50;
 		color: white;
@@ -201,29 +187,19 @@
 		font-size: 1rem;
 		cursor: pointer;
 		font-weight: 500;
+		margin-bottom: 1rem;
 	}
 
-	button:hover {
+	.save-btn:hover:not(:disabled) {
 		background: #34495e;
 	}
 
-	button:disabled {
+	.save-btn:disabled {
 		background: #95a5a6;
 		cursor: not-allowed;
 	}
 
-	.test-btn {
-		background: #fff;
-		color: #2c3e50;
-		border: 2px solid #2c3e50;
-	}
-
-	.test-btn:hover {
-		background: #f8f9fa;
-	}
-
 	.message {
-		margin-top: 1rem;
 		padding: 0.75rem;
 		border-radius: 4px;
 		text-align: center;

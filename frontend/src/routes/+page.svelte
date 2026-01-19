@@ -17,8 +17,12 @@
         }
 
         // Subscribe to config changes - config is already loaded by layout
-        const unsubscribe = configStore.subscribe(config => {
-            isConfigured = !!(config.serverUrl && config.username && config.password);
+        const unsubscribe = configStore.subscribe((config) => {
+            isConfigured = !!(
+                config.serverUrl &&
+                config.username &&
+                config.password
+            );
         });
 
         if (!isConfigured) {
@@ -38,6 +42,7 @@
                 seriesCount = seriesRes.total;
                 recentBooks = booksRes.data ?? [];
             } catch (e) {
+                console.error("Failed to load home page data", e);
                 error = e instanceof Error ? e.message : "Failed to load data";
             } finally {
                 loading = false;
@@ -59,7 +64,10 @@
     {#if !isConfigured}
         <div class="config-notice">
             <h2>⚙️ Configuration Required</h2>
-            <p>Please <a href="/config">configure your server settings</a> to get started.</p>
+            <p>
+                Please <a href="/config">configure your server settings</a> to get
+                started.
+            </p>
         </div>
     {:else if loading}
         <div class="loading">Loading...</div>
