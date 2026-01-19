@@ -4,7 +4,6 @@ go 1.25.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.11.0
-	github.com/amacneil/dbmate/v2 v2.29.3
 	github.com/buger/jsonparser v1.1.1
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
@@ -16,9 +15,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-sqlite3 v1.14.33 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
