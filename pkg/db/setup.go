@@ -114,8 +114,8 @@ func runMigrations(sqlDB *sql.DB) error {
 		}
 
 		// Read migration file
-		filepath := filepath.Join(migrationsDir, filename)
-		content, err := os.ReadFile(filepath)
+		migrationPath := filepath.Join(migrationsDir, filename)
+		content, err := os.ReadFile(migrationPath)
 		if err != nil {
 			return fmt.Errorf("failed to read migration file %s: %w", filename, err)
 		}
@@ -124,6 +124,12 @@ func runMigrations(sqlDB *sql.DB) error {
 		upSQL := extractUpSQL(string(content))
 		if upSQL == "" {
 			return fmt.Errorf("migration %s has no '-- migrate:up' section", filename)
+		}
+
+		// Run this migration in a transaction to ensure all-or-nothing execution
+		tx, err := sqlDB.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction for migration %s: %w", filename, err)
 		}
 
 		// Execute migration - split by semicolon to handle multiple statements
@@ -141,17 +147,26 @@ func runMigrations(sqlDB *sql.DB) error {
 				continue
 			}
 
-			_, err := sqlDB.ExecContext(ctx, trimmedStmt)
-			if err != nil {
+			if _, err := tx.ExecContext(ctx, trimmedStmt); err != nil {
+				// Any error means the migration did not fully apply; roll back.
+				if rbErr := tx.Rollback(); rbErr != nil {
+					return fmt.Errorf("failed to execute migration %s: %v (rollback error: %w)", filename, err, rbErr)
+				}
 				return fmt.Errorf("failed to execute migration %s: %w", filename, err)
 			}
 		}
 
-		// Record migration
-		if _, err := sqlDB.ExecContext(ctx, "INSERT INTO schema_migrations (version) VALUES (?)", version); err != nil {
+		// Record migration within the same transaction
+		if _, err := tx.ExecContext(ctx, "INSERT INTO schema_migrations (version) VALUES (?)", version); err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				return fmt.Errorf("failed to record migration %s: %v (rollback error: %w)", filename, err, rbErr)
+			}
 			return fmt.Errorf("failed to record migration %s: %w", filename, err)
 		}
 
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("failed to commit migration %s: %w", filename, err)
+		}
 		slog.Info("Migration applied", slog.String("version", version))
 	}
 
@@ -316,8 +331,11 @@ func extractUpSQL(content string) string {
 	return strings.TrimSpace(strings.Join(upLines, "\n"))
 }
 
-// splitStatements splits SQL by semicolon, handling strings properly
+// splitStatements splits SQL by semicolon, handling strings and inline comments properly
 func splitStatements(sql string) []string {
+	// First, remove inline comments (-- to end of line)
+	sql = removeInlineComments(sql)
+
 	var statements []string
 	var current strings.Builder
 	inString := false
@@ -358,4 +376,45 @@ func splitStatements(sql string) []string {
 	}
 
 	return statements
+}
+
+// removeInlineComments removes SQL inline comments (-- to end of line) while preserving strings
+func removeInlineComments(sql string) string {
+	var result strings.Builder
+	runes := []rune(sql)
+	inString := false
+	var stringChar rune
+
+	for i := 0; i < len(runes); i++ {
+		char := runes[i]
+
+		// Handle string delimiters
+		if !inString && (char == '\'' || char == '"') {
+			inString = true
+			stringChar = char
+			result.WriteRune(char)
+		} else if inString && char == stringChar {
+			if i+1 < len(runes) && runes[i+1] == stringChar {
+				// Escaped quote
+				result.WriteRune(char)
+				result.WriteRune(runes[i+1])
+				i++
+			} else {
+				inString = false
+				result.WriteRune(char)
+			}
+		} else if !inString && char == '-' && i+1 < len(runes) && runes[i+1] == '-' {
+			// Found inline comment, skip until end of line (but don't skip the newline itself)
+			i += 2
+			for i < len(runes) && runes[i] != '\n' {
+				i++
+			}
+			// Don't increment i here, so the newline will be written in the next iteration
+			i--
+		} else {
+			result.WriteRune(char)
+		}
+	}
+
+	return result.String()
 }
