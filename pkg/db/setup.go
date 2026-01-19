@@ -129,19 +129,20 @@ func runMigrations(sqlDB *sql.DB) error {
 		// Execute migration - split by semicolon to handle multiple statements
 		statements := splitStatements(upSQL)
 		for _, stmt := range statements {
-			if strings.TrimSpace(stmt) == "" {
+			trimmedStmt := strings.TrimSpace(stmt)
+			if trimmedStmt == "" {
 				continue
 			}
-			_, err := sqlDB.ExecContext(ctx, stmt)
+
+			// Check if this is an ALTER TABLE ADD COLUMN statement
+			// If so, verify the column doesn't already exist before executing
+			if shouldSkipStatement(ctx, sqlDB, trimmedStmt) {
+				slog.Debug("Skipping already-applied statement", slog.String("migration", filename), slog.String("statement", trimmedStmt))
+				continue
+			}
+
+			_, err := sqlDB.ExecContext(ctx, trimmedStmt)
 			if err != nil {
-				// Check if this is an idempotent operation that already exists
-				errMsg := err.Error()
-				if strings.Contains(errMsg, "already exists") ||
-					strings.Contains(errMsg, "duplicate column") ||
-					strings.Contains(errMsg, "duplicate index") {
-					slog.Debug("Skipping already-applied operation", slog.String("migration", filename), slog.String("error", errMsg))
-					continue
-				}
 				return fmt.Errorf("failed to execute migration %s: %w", filename, err)
 			}
 		}
@@ -155,6 +156,97 @@ func runMigrations(sqlDB *sql.DB) error {
 	}
 
 	return nil
+}
+
+// shouldSkipStatement checks if a statement should be skipped because it would fail due to already-existing structures
+func shouldSkipStatement(ctx context.Context, db *sql.DB, stmt string) bool {
+	stmt = strings.TrimSpace(stmt)
+	stmtUpper := strings.ToUpper(stmt)
+
+	// Check for ALTER TABLE ADD COLUMN
+	if strings.Contains(stmtUpper, "ALTER TABLE") && strings.Contains(stmtUpper, "ADD COLUMN") {
+		// Extract table name and column name from statement
+		// Expected format: ALTER TABLE table_name ADD COLUMN column_name ...
+		tableName, columnName := parseAlterTableAddColumn(stmt)
+		if tableName != "" && columnName != "" {
+			if columnExists(ctx, db, tableName, columnName) {
+				return true
+			}
+		}
+	}
+
+	// Check for CREATE INDEX (these have IF NOT EXISTS, so they're already idempotent)
+	// But we can still check to be safe
+	if strings.Contains(stmtUpper, "CREATE INDEX") && strings.Contains(stmtUpper, "IF NOT EXISTS") {
+		// These are already idempotent, no need to skip
+		return false
+	}
+
+	return false
+}
+
+// parseAlterTableAddColumn extracts table and column names from ALTER TABLE ADD COLUMN statement
+func parseAlterTableAddColumn(stmt string) (tableName, columnName string) {
+	stmtUpper := strings.ToUpper(stmt)
+
+	// Find "ALTER TABLE"
+	alterTableIdx := strings.Index(stmtUpper, "ALTER TABLE")
+	if alterTableIdx == -1 {
+		return "", ""
+	}
+
+	// Find "ADD COLUMN"
+	addColumnIdx := strings.Index(stmtUpper, "ADD COLUMN")
+	if addColumnIdx == -1 {
+		return "", ""
+	}
+
+	// Extract table name (between ALTER TABLE and ADD COLUMN)
+	tableNamePart := strings.TrimSpace(stmt[alterTableIdx+11 : addColumnIdx])
+	tableNameFields := strings.Fields(tableNamePart)
+	if len(tableNameFields) > 0 {
+		tableName = tableNameFields[0]
+	}
+
+	// Extract column name (after ADD COLUMN, before space or type definition)
+	columnNamePart := strings.TrimSpace(stmt[addColumnIdx+10:])
+	columnNameFields := strings.Fields(columnNamePart)
+	if len(columnNameFields) > 0 {
+		columnName = columnNameFields[0]
+	}
+
+	return tableName, columnName
+}
+
+// columnExists checks if a column exists in a table using PRAGMA table_info
+func columnExists(ctx context.Context, db *sql.DB, tableName, columnName string) bool {
+	query := fmt.Sprintf("PRAGMA table_info(%s)", tableName)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		// If we can't check, assume it doesn't exist and let the migration fail if needed
+		slog.Warn("Failed to check if column exists", slog.String("table", tableName), slog.String("column", columnName), slog.Any("error", err))
+		return false
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var typeStr string
+		var notNull int
+		var dfltValue sql.NullString
+		var pk int
+
+		if err := rows.Scan(&cid, &name, &typeStr, &notNull, &dfltValue, &pk); err != nil {
+			continue
+		}
+
+		if strings.EqualFold(name, columnName) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // extractUpSQL extracts the SQL between '-- migrate:up' and '-- migrate:down' markers
