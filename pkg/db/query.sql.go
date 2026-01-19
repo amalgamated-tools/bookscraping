@@ -645,7 +645,7 @@ SELECT
     s.url,
     s.data,
     COUNT(b.id) as total_books,
-    CAST(SUM(CASE WHEN b.is_missing = 1 THEN 1 ELSE 0 END) AS INTEGER) as missing_books
+    COUNT(CASE WHEN b.is_missing = 1 THEN 1 END) as missing_books
 FROM series s
 LEFT JOIN books b ON s.id = b.series_id
 GROUP BY s.id, s.series_id, s.name, s.description, s.url, s.data
