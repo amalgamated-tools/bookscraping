@@ -29,7 +29,7 @@ func SetupDatabase() (Querier, error) {
 	dbDir := filepath.Dir(dbFilePath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		slog.Error("Failed to create database directory", slog.String("path", dbDir), slog.Any("error", err))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to create database directory %s: %w", dbDir, err)
 	}
 
 	// dbmate expects sqlite:path/to/db format
@@ -37,7 +37,7 @@ func SetupDatabase() (Querier, error) {
 	parsedURL, err := url.Parse(dbmateURL)
 	if err != nil {
 		slog.Error("Failed to parse database URL", slog.String("url", dbmateURL), slog.Any("error", err))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to parse database URL %s: %w", dbmateURL, err)
 	}
 	slog.Info("Parsed database URL", slog.String("scheme", parsedURL.Scheme), slog.String("path", parsedURL.Path))
 
@@ -45,7 +45,7 @@ func SetupDatabase() (Querier, error) {
 	err = dbMate.CreateAndMigrate()
 	if err != nil {
 		slog.Error("Failed to create or migrate database", slog.String("path", dbFilePath), slog.Any("error", err))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to create or migrate database at %s: %w", dbFilePath, err)
 	}
 	slog.Info("Database created and migrated successfully", slog.String("path", dbFilePath))
 
@@ -54,7 +54,7 @@ func SetupDatabase() (Querier, error) {
 	sqlDB, err := sql.Open("sqlite", dbFilePath)
 	if err != nil {
 		slog.Error("Failed to open database", slog.String("path", dbFilePath), slog.Any("error", err))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to open database at %s: %w", dbFilePath, err)
 	}
 	defer sqlDB.Close()
 
@@ -63,7 +63,7 @@ func SetupDatabase() (Querier, error) {
 	count, err := queries.CountBooks(context.Background())
 	if err != nil {
 		slog.Error("Failed to count books in database", slog.Any("error", err))
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to count books in database: %w", err)
 	}
 	slog.Info("Database connected", slog.Int64("book_count", count))
 	return queries, nil
