@@ -187,7 +187,7 @@ func extractUpSQL(content string) string {
 func splitStatements(sql string) []string {
 	// First, remove inline comments (-- to end of line)
 	sql = removeInlineComments(sql)
-	
+
 	var statements []string
 	var current strings.Builder
 	inString := false
@@ -236,10 +236,10 @@ func removeInlineComments(sql string) string {
 	runes := []rune(sql)
 	inString := false
 	var stringChar rune
-	
+
 	for i := 0; i < len(runes); i++ {
 		char := runes[i]
-		
+
 		// Handle string delimiters
 		if !inString && (char == '\'' || char == '"') {
 			inString = true
@@ -267,6 +267,6 @@ func removeInlineComments(sql string) string {
 			result.WriteRune(char)
 		}
 	}
-	
+
 	return result.String()
 }
