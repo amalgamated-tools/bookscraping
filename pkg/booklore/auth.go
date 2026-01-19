@@ -58,13 +58,19 @@ func (c *Client) RefreshToken() error {
 	req.Header.Add("accept", "*/*")
 	req.Header.Add("Content-Type", "application/json")
 
-	res, _ := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
 
 	defer res.Body.Close()
-	body, _ := io.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
 
 	var token Token
-	err := json.Unmarshal(body, &token)
+	err = json.Unmarshal(body, &token)
 	if err != nil {
 		return err
 	}
@@ -90,14 +96,20 @@ func (c *Client) performLogin() error {
 	req.Header.Add("accept", "*/*")
 	req.Header.Add("Content-Type", "application/json")
 
-	res, _ := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
 
 	defer res.Body.Close()
-	body, _ := io.ReadAll(res.Body)
-	fmt.Println(string(body))
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+	slog.Debug("Login response", "body", string(body))
 
 	var token Token
-	err := json.Unmarshal(body, &token)
+	err = json.Unmarshal(body, &token)
 	if err != nil {
 		return err
 	}
