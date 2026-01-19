@@ -66,6 +66,10 @@ func (m *MockQuerier) GetBooksBySeries(ctx context.Context, seriesID *int64) ([]
 	return nil, nil
 }
 
+func (m *MockQuerier) GetMultipleConfig(ctx context.Context, key string) ([]db.Configuration, error) {
+	return nil, nil
+}
+
 func (m *MockQuerier) GetSeries(ctx context.Context, id int64) (db.Series, error) {
 	return db.Series{}, nil
 }
