@@ -187,6 +187,11 @@ func shouldSkipStatement(ctx context.Context, db *sql.DB, stmt string) bool {
 
 // parseAlterTableAddColumn extracts table and column names from ALTER TABLE ADD COLUMN statement
 func parseAlterTableAddColumn(stmt string) (tableName, columnName string) {
+	const (
+		alterTableLen = len("ALTER TABLE")
+		addColumnLen  = len("ADD COLUMN")
+	)
+
 	stmtUpper := strings.ToUpper(stmt)
 
 	// Find "ALTER TABLE"
@@ -202,14 +207,14 @@ func parseAlterTableAddColumn(stmt string) (tableName, columnName string) {
 	}
 
 	// Extract table name (between ALTER TABLE and ADD COLUMN)
-	tableNamePart := strings.TrimSpace(stmt[alterTableIdx+11 : addColumnIdx])
+	tableNamePart := strings.TrimSpace(stmt[alterTableIdx+alterTableLen : addColumnIdx])
 	tableNameFields := strings.Fields(tableNamePart)
 	if len(tableNameFields) > 0 {
 		tableName = tableNameFields[0]
 	}
 
 	// Extract column name (after ADD COLUMN, before space or type definition)
-	columnNamePart := strings.TrimSpace(stmt[addColumnIdx+10:])
+	columnNamePart := strings.TrimSpace(stmt[addColumnIdx+addColumnLen:])
 	columnNameFields := strings.Fields(columnNamePart)
 	if len(columnNameFields) > 0 {
 		columnName = columnNameFields[0]
@@ -220,6 +225,14 @@ func parseAlterTableAddColumn(stmt string) (tableName, columnName string) {
 
 // columnExists checks if a column exists in a table using PRAGMA table_info
 func columnExists(ctx context.Context, db *sql.DB, tableName, columnName string) bool {
+	// Validate table name to prevent SQL injection
+	// SQLite table names should only contain alphanumeric characters and underscores
+	if !isValidSQLiteIdentifier(tableName) {
+		slog.Warn("Invalid table name", slog.String("table", tableName))
+		return false
+	}
+
+	// PRAGMA table_info doesn't support parameterized queries, but we've validated the input
 	query := fmt.Sprintf("PRAGMA table_info(%s)", tableName)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -238,6 +251,7 @@ func columnExists(ctx context.Context, db *sql.DB, tableName, columnName string)
 		var pk int
 
 		if err := rows.Scan(&cid, &name, &typeStr, &notNull, &dfltValue, &pk); err != nil {
+			slog.Warn("Failed to scan table_info row", slog.String("table", tableName), slog.Any("error", err))
 			continue
 		}
 
@@ -247,6 +261,20 @@ func columnExists(ctx context.Context, db *sql.DB, tableName, columnName string)
 	}
 
 	return false
+}
+
+// isValidSQLiteIdentifier checks if a string is a valid SQLite identifier (table/column name)
+// Valid identifiers contain only alphanumeric characters and underscores
+func isValidSQLiteIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 // extractUpSQL extracts the SQL between '-- migrate:up' and '-- migrate:down' markers
