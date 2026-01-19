@@ -16,6 +16,7 @@ type Querier interface {
 	CreateSeries(ctx context.Context, arg CreateSeriesParams) (Series, error)
 	GetAuthorByName(ctx context.Context, name string) (Author, error)
 	GetAuthorsForBook(ctx context.Context, bookID int64) ([]Author, error)
+	GetAuthorsForMultipleSeries(ctx context.Context, seriesIds []int64) ([]GetAuthorsForMultipleSeriesRow, error)
 	GetBook(ctx context.Context, id int64) (Book, error)
 	GetBookByBookID(ctx context.Context, bookID int64) (Book, error)
 	GetBooksBySeries(ctx context.Context, seriesID *int64) ([]Book, error)

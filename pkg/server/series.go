@@ -110,25 +110,38 @@ func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Collect all series IDs for batch author query
+	seriesIDs := make([]int64, len(seriesRows))
+	for i, row := range seriesRows {
+		seriesIDs[i] = row.ID
+	}
+
+	// Fetch authors for all series in one query
+	authorsRows, err := s.queries.GetAuthorsForMultipleSeries(ctx, seriesIDs)
+	if err != nil {
+		slog.Error("Failed to get authors for series", "error", err)
+		authorsRows = []db.GetAuthorsForMultipleSeriesRow{}
+	}
+
+	// Build a map of series_id -> []author_name
+	authorsMap := make(map[int64][]string)
+	for _, authorRow := range authorsRows {
+		authorsMap[authorRow.SeriesID] = append(authorsMap[authorRow.SeriesID], authorRow.Name)
+	}
+
 	// Convert rows to SeriesWithStats
 	seriesWithStats := make([]SeriesWithStats, len(seriesRows))
 	for i, row := range seriesRows {
-		// Fetch authors for each series
-		authors, err := s.queries.GetSeriesAuthors(ctx, row.ID)
-		if err != nil {
-			slog.Error("Failed to get authors for series", "series_id", row.ID, "error", err)
-			authors = []db.Author{}
-		}
-
-		authorNames := make([]string, len(authors))
-		for j, author := range authors {
-			authorNames[j] = author.Name
-		}
-
 		// Convert MissingBooks from *float64 to int64
 		missingBooks := int64(0)
 		if row.MissingBooks != nil {
 			missingBooks = int64(*row.MissingBooks)
+		}
+
+		// Get authors from map
+		authors := authorsMap[row.ID]
+		if authors == nil {
+			authors = []string{}
 		}
 
 		seriesWithStats[i] = SeriesWithStats{
@@ -140,7 +153,7 @@ func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Reques
 				Url:         row.Url,
 				Data:        row.Data,
 			},
-			Authors:      authorNames,
+			Authors:      authors,
 			TotalBooks:   row.TotalBooks,
 			MissingBooks: missingBooks,
 		}

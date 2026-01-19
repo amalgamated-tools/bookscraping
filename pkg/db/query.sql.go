@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"strings"
 )
 
 const countBooks = `-- name: CountBooks :one
@@ -217,6 +218,52 @@ func (q *Queries) GetAuthorsForBook(ctx context.Context, bookID int64) ([]Author
 	for rows.Next() {
 		var i Author
 		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAuthorsForMultipleSeries = `-- name: GetAuthorsForMultipleSeries :many
+SELECT sa.series_id, a.id, a.name FROM authors a
+JOIN series_authors sa ON a.id = sa.author_id
+WHERE sa.series_id IN (/*SLICE:series_ids*/?)
+ORDER BY sa.series_id, a.name ASC
+`
+
+type GetAuthorsForMultipleSeriesRow struct {
+	SeriesID int64  `json:"series_id"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+}
+
+func (q *Queries) GetAuthorsForMultipleSeries(ctx context.Context, seriesIds []int64) ([]GetAuthorsForMultipleSeriesRow, error) {
+	query := getAuthorsForMultipleSeries
+	var queryParams []interface{}
+	if len(seriesIds) > 0 {
+		for _, v := range seriesIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:series_ids*/?", strings.Repeat(",?", len(seriesIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:series_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAuthorsForMultipleSeriesRow
+	for rows.Next() {
+		var i GetAuthorsForMultipleSeriesRow
+		if err := rows.Scan(&i.SeriesID, &i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
