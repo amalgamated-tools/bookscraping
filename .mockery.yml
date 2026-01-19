@@ -1,0 +1,16 @@
+all: false
+dir: '{{.InterfaceDir}}'
+structname: Mock{{.InterfaceName}}
+pkgname: '{{.SrcPackageName}}'
+force-file-write: true
+recursive: true
+include-auto-generated: true
+template: testify
+template-data:
+  unroll-variadic: true
+packages:
+  github.com/amalgamated-tools/bookscraping/pkg/db:
+    interfaces:
+      Querier:
+        config:
+          filename: "mock_querier.go"
