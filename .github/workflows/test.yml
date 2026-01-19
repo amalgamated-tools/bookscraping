@@ -7,28 +7,6 @@ on:
     branches: [main, develop]
 
 jobs:
-  go-tests:
-    runs-on: ubuntu-latest
-    name: Go Tests
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Run Go tests
-        run: go test -v ./...
-
-      - name: Check Go formatting
-        run: |
-          if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
-            echo "Go files are not formatted. Please run 'go fmt ./...'"
-            gofmt -d .
-            exit 1
-          fi
-
   frontend-tests:
     runs-on: ubuntu-latest
     name: Frontend Build & Check
@@ -53,10 +31,6 @@ jobs:
         working-directory: ./frontend
         run: pnpm run check
 
-      - name: Build frontend
-        working-directory: ./frontend
-        run: pnpm run build
-
       - name: Check formatting
         working-directory: ./frontend
         run: |
@@ -64,3 +38,45 @@ jobs:
             echo "Frontend files are not formatted. Please run 'pnpm run format'"
             exit 1
           }
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: pnpm run build
+
+      - name: Copy built assets to server package
+        run: |
+          rm -rf pkg/server/dist
+          cp -r frontend/build pkg/server/dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: pkg/server/dist
+
+  go-tests:
+    needs: frontend-tests
+    runs-on: ubuntu-latest
+    name: Go Tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: pkg/server/dist
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Run Go tests
+        run: go test -v ./...
+
+      - name: Check Go formatting
+        run: |
+          if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+            echo "Go files are not formatted. Please run 'go fmt ./...'"
+            gofmt -d .
+            exit 1
+          fi
