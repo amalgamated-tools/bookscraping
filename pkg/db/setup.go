@@ -14,7 +14,7 @@ import (
 
 func SetupDatabase() (Querier, error) {
 	slog.Info("Setting up database")
-	
+
 	// Determine database path: prefer mounted /data folder, fall back to ./db
 	var dbFilePath string
 	if _, err := os.Stat("/data"); err == nil {
@@ -24,14 +24,14 @@ func SetupDatabase() (Querier, error) {
 		dbFilePath = "./db/bookscraping.db"
 		slog.Info("Using local db folder", slog.String("path", dbFilePath))
 	}
-	
+
 	// Ensure parent directory exists
 	dbDir := filepath.Dir(dbFilePath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		slog.Error("Failed to create database directory", slog.String("path", dbDir), slog.Any("error", err))
 		os.Exit(1)
 	}
-	
+
 	// dbmate expects sqlite:path/to/db format
 	dbmateURL := fmt.Sprintf("sqlite:%s", dbFilePath)
 	parsedURL, err := url.Parse(dbmateURL)
@@ -48,7 +48,7 @@ func SetupDatabase() (Querier, error) {
 		os.Exit(1)
 	}
 	slog.Info("Database created and migrated successfully", slog.String("path", dbFilePath))
-	
+
 	// Open database with sqlite driver (expects just the file path, not the URL format)
 	slog.Info("Opening database", slog.String("path", dbFilePath))
 	sqlDB, err := sql.Open("sqlite", dbFilePath)
