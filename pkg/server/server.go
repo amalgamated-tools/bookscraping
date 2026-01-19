@@ -80,11 +80,9 @@ func (s *Server) Run(ctx context.Context) error {
 	slog.Info("Running server", "address", s.Address)
 	ctx, cancel := context.WithCancel(ctx)
 
-	timeoutHandler := http.TimeoutHandler(s.mux, HTTPRequestTimeout, "Request timeout")
-
 	s.httpServer = &http.Server{
 		Addr:         s.Address,
-		Handler:      timeoutHandler,
+		Handler:      s.mux,
 		WriteTimeout: HTTPWriteTimeout,
 		ReadTimeout:  HTTPReadTimeout,
 		IdleTimeout:  HTTPIdleTimeout,
