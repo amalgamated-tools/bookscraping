@@ -645,7 +645,7 @@ SELECT
     s.url,
     s.data,
     COUNT(b.id) as total_books,
-    SUM(CASE WHEN b.is_missing = 1 THEN 1 ELSE 0 END) as missing_books
+    CAST(SUM(CASE WHEN b.is_missing = 1 THEN 1 ELSE 0 END) AS INTEGER) as missing_books
 FROM series s
 LEFT JOIN books b ON s.id = b.series_id
 GROUP BY s.id, s.series_id, s.name, s.description, s.url, s.data
@@ -666,7 +666,7 @@ type ListSeriesWithBookStatsRow struct {
 	Url          *string         `json:"url"`
 	Data         json.RawMessage `json:"data"`
 	TotalBooks   int64           `json:"total_books"`
-	MissingBooks *float64        `json:"missing_books"`
+	MissingBooks int64           `json:"missing_books"`
 }
 
 func (q *Queries) ListSeriesWithBookStats(ctx context.Context, arg ListSeriesWithBookStatsParams) ([]ListSeriesWithBookStatsRow, error) {

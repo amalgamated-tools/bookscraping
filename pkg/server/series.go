@@ -132,12 +132,6 @@ func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Reques
 	// Convert rows to SeriesWithStats
 	seriesWithStats := make([]SeriesWithStats, len(seriesRows))
 	for i, row := range seriesRows {
-		// Convert MissingBooks from *float64 to int64
-		missingBooks := int64(0)
-		if row.MissingBooks != nil {
-			missingBooks = int64(*row.MissingBooks)
-		}
-
 		// Get authors from map
 		authors := authorsMap[row.ID]
 		if authors == nil {
@@ -155,7 +149,7 @@ func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Reques
 			},
 			Authors:      authors,
 			TotalBooks:   row.TotalBooks,
-			MissingBooks: missingBooks,
+			MissingBooks: row.MissingBooks,
 		}
 	}
 
