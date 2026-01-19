@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { api, type Book } from "$lib/api";
+    import { api, type Series, type Book } from "$lib/api";
     import { browser } from "$app/environment";
     import { onMount } from "svelte";
     import { configStore } from "$lib/stores/configStore";
 
-    let bookCount = $state(0);
-    let seriesCount = $state(0);
-    let recentBooks = $state<Book[]>([]);
+    let allSeries = $state<Series[]>([]);
+    let seriesWithBooks = $state<(Series & { books: Book[] })[]>([]);
+    let incompleteSeries = $state<(Series & { books: Book[]; missingCount: number })[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
     let isConfigured = $state(false);
@@ -33,16 +33,35 @@
         // Load data if configured
         (async () => {
             try {
-                console.log("Loading home page data...");
-                const [booksRes, seriesRes] = await Promise.all([
-                    api.getBooks(1, 5),
-                    api.getSeries(1, 5),
-                ]);
-                bookCount = booksRes.total;
-                seriesCount = seriesRes.total;
-                recentBooks = booksRes.data ?? [];
+                console.log("Loading series data...");
+                const seriesRes = await api.getSeries(1, 100);
+                allSeries = seriesRes.data ?? [];
+
+                // Fetch books for each series to find incomplete ones
+                const seriesData = await Promise.all(
+                    allSeries.map(async (series) => {
+                        try {
+                            const books = await api.getSeriesBooks(series.id);
+                            return { ...series, books: books || [] };
+                        } catch (e) {
+                            console.error(`Failed to load books for series ${series.id}`, e);
+                            return { ...series, books: [] };
+                        }
+                    })
+                );
+
+                seriesWithBooks = seriesData;
+
+                // Find incomplete series (those with missing books marked is_missing: true)
+                incompleteSeries = seriesData
+                    .map((series) => {
+                        const missingCount = series.books.filter((b) => b.is_missing).length;
+                        return { ...series, missingCount };
+                    })
+                    .filter((series) => series.missingCount > 0)
+                    .sort((a, b) => b.missingCount - a.missingCount);
             } catch (e) {
-                console.error("Failed to load home page data", e);
+                console.error("Failed to load series data", e);
                 error = e instanceof Error ? e.message : "Failed to load data";
             } finally {
                 loading = false;
@@ -59,7 +78,6 @@
 
 <div class="home">
     <h1>📚 BookScraping</h1>
-    <p class="subtitle">A Goodreads scraping and book management application</p>
 
     {#if !isConfigured}
         <div class="config-notice">
@@ -70,7 +88,7 @@
             </p>
         </div>
     {:else if loading}
-        <div class="loading">Loading...</div>
+        <div class="loading">Loading series data...</div>
     {:else if error}
         <div class="error">
             <p>{error}</p>
@@ -79,43 +97,70 @@
     {:else}
         <div class="stats">
             <div class="stat-card">
-                <span class="stat-number">{bookCount}</span>
-                <span class="stat-label">Books</span>
+                <span class="stat-number">{allSeries.length}</span>
+                <span class="stat-label">Total Series</span>
             </div>
             <div class="stat-card">
-                <span class="stat-number">{seriesCount}</span>
-                <span class="stat-label">Series</span>
+                <span class="stat-number">{incompleteSeries.length}</span>
+                <span class="stat-label">Incomplete</span>
             </div>
         </div>
 
-        {#if recentBooks.length > 0}
-            <section class="recent-books">
-                <h2>Recent Books</h2>
-                <div class="book-grid">
-                    {#each recentBooks as book}
-                        <a href="/books/{book.id}" class="book-card">
-                            <h3>{book.title}</h3>
-                            {#if book.series_name}
-                                <p class="series">
-                                    {book.series_name} #{book.series_number}
-                                </p>
+        {#if incompleteSeries.length > 0}
+            <section class="series-section incomplete">
+                <h2>📖 Incomplete Series</h2>
+                <p class="section-subtitle">Series with missing books</p>
+                <div class="series-grid">
+                    {#each incompleteSeries.slice(0, 6) as series}
+                        <div class="series-card">
+                            <div class="series-header">
+                                <h3>{series.name}</h3>
+                                <span class="missing-badge">{series.missingCount} missing</span>
+                            </div>
+                            {#if series.description}
+                                <p class="description">{series.description.substring(0, 100)}...</p>
                             {/if}
-                        </a>
+                            <div class="series-stats">
+                                <span>{series.books.length} books total</span>
+                                <span>{series.books.filter((b) => !b.is_missing).length} owned</span>
+                            </div>
+                            <a href="/series/{series.id}" class="action-btn">View Series</a>
+                        </div>
                     {/each}
                 </div>
+                {#if incompleteSeries.length > 6}
+                    <p class="view-all"><a href="/series">View all {incompleteSeries.length} incomplete series</a></p>
+                {/if}
+            </section>
+        {/if}
+
+        {#if allSeries.length > 0}
+            <section class="series-section all">
+                <h2>📚 All Series</h2>
+                <p class="section-subtitle">Browse your complete series collection</p>
+                <div class="series-grid">
+                    {#each seriesWithBooks.slice(0, 6) as series}
+                        <div class="series-card">
+                            <div class="series-header">
+                                <h3>{series.name}</h3>
+                            </div>
+                            {#if series.description}
+                                <p class="description">{series.description.substring(0, 100)}...</p>
+                            {/if}
+                            <div class="series-stats">
+                                <span>{series.books.length} books</span>
+                                {#if series.authors && series.authors.length > 0}
+                                    <span>{series.authors.join(", ")}</span>
+                                {/if}
+                            </div>
+                            <a href="/series/{series.id}" class="action-btn">View Series</a>
+                        </div>
+                    {/each}
+                </div>
+                <p class="view-all"><a href="/series">Browse all {allSeries.length} series</a></p>
             </section>
         {/if}
     {/if}
-
-    <section class="features">
-        <h2>Features</h2>
-        <ul>
-            <li>📖 Browse and search your book collection</li>
-            <li>🔍 Search Goodreads for book information</li>
-            <li>📚 Track book series and reading order</li>
-            <li>🔗 Link books with Goodreads, ISBN, and more</li>
-        </ul>
-    </section>
 </div>
 
 <style>
@@ -126,12 +171,6 @@
     h1 {
         font-size: 2.5rem;
         margin-bottom: 0.5rem;
-    }
-
-    .subtitle {
-        color: #666;
-        font-size: 1.2rem;
-        margin-bottom: 2rem;
     }
 
     .loading {
@@ -210,64 +249,129 @@
         letter-spacing: 1px;
     }
 
-    .recent-books {
+    .series-section {
         margin: 2rem 0;
         text-align: left;
     }
 
-    .book-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1rem;
+    .series-section h2 {
+        margin-bottom: 0.25rem;
+        font-size: 1.5rem;
     }
 
-    .book-card {
+    .section-subtitle {
+        color: #666;
+        font-size: 0.9rem;
+        margin: 0 0 1.5rem 0;
+    }
+
+    .series-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .series-card {
         background: white;
         border-radius: 8px;
-        padding: 1rem;
+        padding: 1.5rem;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        text-decoration: none;
-        color: inherit;
-        transition:
-            transform 0.2s,
-            box-shadow 0.2s;
+        transition: box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
     }
 
-    .book-card:hover {
-        transform: translateY(-2px);
+    .series-card:hover {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    .book-card h3 {
-        margin: 0 0 0.5rem;
-        font-size: 1rem;
+    .series-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
     }
 
-    .book-card .series {
+    .series-card h3 {
         margin: 0;
-        font-size: 0.85rem;
-        color: #666;
+        font-size: 1.1rem;
+        flex: 1;
+        text-align: left;
     }
 
-    .features {
-        text-align: left;
+    .missing-badge {
+        background-color: #ff6b6b;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .description {
+        margin: 0.5rem 0;
+        font-size: 0.9rem;
+        color: #666;
+        line-height: 1.4;
+    }
+
+    .series-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin: 1rem 0;
+        font-size: 0.85rem;
+        color: #888;
+        flex: 1;
+    }
+
+    .action-btn {
+        display: inline-block;
+        margin-top: auto;
+        padding: 0.5rem 1rem;
+        background: #2c3e50;
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .action-btn:hover {
+        background: #34495e;
+    }
+
+    .view-all {
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .view-all a {
+        color: #2c3e50;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .view-all a:hover {
+        text-decoration: underline;
+    }
+
+    .incomplete {
         background: white;
         border-radius: 12px;
-        padding: 1.5rem 2rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
-    .features h2 {
-        margin-top: 0;
-    }
-
-    .features ul {
-        list-style: none;
-        padding: 0;
-    }
-
-    .features li {
-        padding: 0.5rem 0;
-        font-size: 1.1rem;
+    .all {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 </style>
