@@ -50,7 +50,7 @@ RUN go build -o bin/bookscraping-server ./cmd/server
 FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata wget
 
 WORKDIR /app
 
