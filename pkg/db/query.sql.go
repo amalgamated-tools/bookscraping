@@ -253,7 +253,8 @@ func (q *Queries) GetAuthorsForMultipleSeries(ctx context.Context, seriesIds []i
 		}
 		query = strings.Replace(query, "/*SLICE:series_ids*/?", strings.Repeat(",?", len(seriesIds))[1:], 1)
 	} else {
-		query = strings.Replace(query, "/*SLICE:series_ids*/?", "NULL", 1)
+		// No series IDs provided; return an empty result set without issuing a query.
+		return []GetAuthorsForMultipleSeriesRow{}, nil
 	}
 	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
