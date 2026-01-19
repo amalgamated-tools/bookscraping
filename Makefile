@@ -24,7 +24,7 @@ dev:
 run: reset-db dev
 
 reset-db:
-	dbmate drop && dbmate up && dbmate dump           
+	dbmate drop && dbmate up && dbmate dump
 
 # Development mode - run frontend dev server with proxy to Go backend
 dev-frontend:
