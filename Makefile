@@ -1,4 +1,4 @@
-.PHONY: all build build-frontend build-server dev clean
+.PHONY: all build build-frontend build-server dev clean install-frontend fmt migrate sqlc test test-go test-frontend test-format
 
 # Default target
 all: build
@@ -53,3 +53,35 @@ migrate:
 # Generate sqlc
 sqlc:
 	sqlc generate
+
+# Test targets
+test: test-go test-frontend
+	@echo "✓ All tests passed!"
+
+test-go:
+	@echo "Running Go tests..."
+	@go test -v ./...
+	@echo "✓ Go tests passed!"
+
+test-frontend: test-format
+	@echo "Running TypeScript type check..."
+	@cd frontend && pnpm run check
+	@echo "✓ TypeScript check passed!"
+	@echo "Building frontend..."
+	@cd frontend && pnpm run build
+	@echo "✓ Frontend build passed!"
+
+test-format:
+	@echo "Checking Go formatting..."
+	@if [ "$$(gofmt -l . | wc -l)" -gt 0 ]; then \
+		echo "✗ Go files are not formatted. Please run 'make fmt'"; \
+		gofmt -d .; \
+		exit 1; \
+	fi
+	@echo "✓ Go formatting OK!"
+	@echo "Checking frontend formatting..."
+	@cd frontend && pnpm run format --check || { \
+		echo "✗ Frontend files are not formatted. Please run 'make fmt'"; \
+		exit 1; \
+	}
+	@echo "✓ Frontend formatting OK!"
