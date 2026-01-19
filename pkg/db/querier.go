@@ -20,6 +20,7 @@ type Querier interface {
 	GetBookByBookID(ctx context.Context, bookID int64) (Book, error)
 	GetBooksBySeries(ctx context.Context, seriesID *int64) ([]Book, error)
 	GetConfig(ctx context.Context, key string) (string, error)
+	GetMultipleConfig(ctx context.Context, key string) ([]Configuration, error)
 	GetSeries(ctx context.Context, id int64) (Series, error)
 	GetSeriesAuthors(ctx context.Context, seriesID int64) ([]Author, error)
 	GetSeriesByGoodreadsID(ctx context.Context, seriesID int64) (Series, error)

@@ -137,3 +137,7 @@ WHERE key = ? LIMIT 1;
 INSERT INTO configuration (key, value)
 VALUES (?, ?)
 ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+
+-- name: GetMultipleConfig :many
+SELECT key, value FROM configuration
+WHERE key IN (?);

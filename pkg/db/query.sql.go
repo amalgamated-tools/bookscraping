@@ -348,6 +348,34 @@ func (q *Queries) GetConfig(ctx context.Context, key string) (string, error) {
 	return value, err
 }
 
+const getMultipleConfig = `-- name: GetMultipleConfig :many
+SELECT key, value FROM configuration
+WHERE key IN (?)
+`
+
+func (q *Queries) GetMultipleConfig(ctx context.Context, key string) ([]Configuration, error) {
+	rows, err := q.db.QueryContext(ctx, getMultipleConfig, key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Configuration
+	for rows.Next() {
+		var i Configuration
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSeries = `-- name: GetSeries :one
 SELECT id, series_id, name, description, url, data FROM series
 WHERE id = ? LIMIT 1

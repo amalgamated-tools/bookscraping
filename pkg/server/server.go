@@ -6,17 +6,40 @@ import (
 	"encoding/json"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
+	"golang.org/x/sync/errgroup"
 )
 
 //go:embed all:dist
 var distFS embed.FS
+
+const (
+	// UserAgentHeader is the header name for the user agent.
+	UserAgentHeader = "User-Agent"
+	// HTTPWriteTimeout is the maximum duration before timing out writes of the response.
+	HTTPWriteTimeout = 10 * time.Second
+	// HTTPReadTimeout is the maximum duration for reading the entire request, including the body.
+	HTTPReadTimeout = 10 * time.Second
+	// HTTPIdleTimeout is the maximum amount of time to wait for the next request when keep-alives are enabled.
+	HTTPIdleTimeout = 30 * time.Second
+	// HTTPRequestTimeout is the maximum duration for handling a single HTTP request.
+	HTTPRequestTimeout = 10 * time.Second
+	// ShutdownGracePeriod is the time we allow for graceful shutdown of the http server
+	// Should be longer than HTTPWriteTimeout, but shorter than the k8s terminationGracePeriodSeconds (30 seconds)
+	ShutdownGracePeriod = 15 * time.Second
+)
+
+// ShutdownFunc is a function that takes a context and returns an error
+type ShutdownFunc func(context.Context) error
 
 // Server represents the HTTP server with embedded frontend
 type Server struct {
@@ -24,52 +47,85 @@ type Server struct {
 	queries  db.Querier
 	grClient *goodreads.Client
 	blClient *booklore.Client
-	mux      *http.ServeMux
-	eventCh  chan string
+
+	Address string
+	port    int
+
+	mux           *http.ServeMux
+	httpServer    *http.Server
+	shutdownFuncs []ShutdownFunc
+
+	eventCh chan string
+
+	// SSE client tracking
+	sseClients map[string]chan string
+	sseMu      sync.RWMutex
 }
 
 // NewServer creates a new server instance
 func NewServer(opts ...ServerOption) *Server {
 	s := &Server{
-		mux:     http.NewServeMux(),
-		eventCh: make(chan string, 100),
+		mux:        http.NewServeMux(),
+		eventCh:    make(chan string, 100),
+		sseClients: make(map[string]chan string),
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
-
-	if s.blClient == nil {
-		serverURL := ""
-		username := ""
-		password := ""
-
-		ctx := context.Background()
-
-		// Try to get config from database if queries are available
-		if s.queries == nil {
-			slog.Warn("No database queries available, BookLore client will have no configuration")
-		} else {
-			slog.Info("Loading BookLore configuration from database")
-			dbServerURL, err := s.queries.GetConfig(ctx, "serverUrl")
-			if err == nil && dbServerURL != "" {
-				serverURL = dbServerURL
-			}
-			dbUsername, err := s.queries.GetConfig(ctx, "username")
-			if err == nil && dbUsername != "" {
-				username = dbUsername
-			}
-			dbPassword, err := s.queries.GetConfig(ctx, "password")
-			if err == nil && dbPassword != "" {
-				password = dbPassword
-			}
-		}
-
-		bookloreClient := booklore.NewClient(serverURL, username, password)
-		s.blClient = bookloreClient
+	if s.port == 0 {
+		s.port = 8080
 	}
+	s.Address = net.JoinHostPort("0.0.0.0", strconv.Itoa(s.port))
 
 	s.setupRoutes()
+	s.setupBookloreClient()
 	return s
+}
+
+func (s *Server) Run(ctx context.Context) error {
+	slog.Info("Running server", "address", s.Address)
+	ctx, cancel := context.WithCancel(ctx)
+
+	s.httpServer = &http.Server{
+		Addr:         s.Address,
+		Handler:      s.mux,
+		WriteTimeout: HTTPWriteTimeout,
+		ReadTimeout:  HTTPReadTimeout,
+		IdleTimeout:  HTTPIdleTimeout,
+	}
+
+	go func() {
+		err := s.httpServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			slog.Error("HTTP server error", "error", err)
+			s.shutdownFuncs = append(s.shutdownFuncs, func(_ context.Context) error {
+				return err
+			})
+			cancel()
+			return
+		}
+	}()
+
+	s.shutdownFuncs = append(s.shutdownFuncs, s.httpServer.Shutdown)
+
+	<-ctx.Done()
+	return s.shutdown(ctx)
+}
+
+func (s *Server) shutdown(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, ShutdownGracePeriod)
+	defer cancel()
+
+	shutdownGroup, ctx := errgroup.WithContext(ctx)
+
+	for _, shutdownFn := range s.shutdownFuncs {
+		fn := shutdownFn
+		shutdownGroup.Go(func() error {
+			return fn(ctx)
+		})
+	}
+
+	return shutdownGroup.Wait()
 }
 
 func (s *Server) setupRoutes() {
@@ -121,15 +177,36 @@ func (s *Server) setupRoutes() {
 	})
 }
 
-// ServeHTTP implements the http.Handler interface
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
-}
+func (s *Server) setupBookloreClient() {
+	if s.blClient == nil {
+		serverURL := ""
+		username := ""
+		password := ""
 
-// Start starts the server on the given address
-func (s *Server) Start() error {
-	slog.Info("Starting server", "address", s.addr)
-	return http.ListenAndServe(s.addr, s)
+		ctx := context.Background()
+
+		// Try to get config from database if queries are available
+		if s.queries == nil {
+			slog.Warn("No database queries available, BookLore client will have no configuration")
+		} else {
+			slog.Info("Loading BookLore configuration from database")
+			dbServerURL, err := s.queries.GetConfig(ctx, "serverUrl")
+			if err == nil && dbServerURL != "" {
+				serverURL = dbServerURL
+			}
+			dbUsername, err := s.queries.GetConfig(ctx, "username")
+			if err == nil && dbUsername != "" {
+				username = dbUsername
+			}
+			dbPassword, err := s.queries.GetConfig(ctx, "password")
+			if err == nil && dbPassword != "" {
+				password = dbPassword
+			}
+		}
+
+		bookloreClient := booklore.NewClient(serverURL, username, password)
+		s.blClient = bookloreClient
+	}
 }
 
 // JSON response helpers

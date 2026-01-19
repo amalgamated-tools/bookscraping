@@ -10,113 +10,8 @@ import (
 	"testing"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
+	"github.com/stretchr/testify/mock"
 )
-
-// MockQuerier is a mock implementation of db.Querier for testing
-type MockQuerier struct {
-	getConfigFn func(ctx context.Context, key string) (string, error)
-}
-
-// GetConfig implements the GetConfig method from db.Querier
-func (m *MockQuerier) GetConfig(ctx context.Context, key string) (string, error) {
-	if m.getConfigFn != nil {
-		return m.getConfigFn(ctx, key)
-	}
-	return "", nil
-}
-
-// Implement other required methods from Querier interface as no-ops
-func (m *MockQuerier) CountBooks(ctx context.Context) (int64, error) {
-	return 0, nil
-}
-
-func (m *MockQuerier) CountSeries(ctx context.Context) (int64, error) {
-	return 0, nil
-}
-
-func (m *MockQuerier) CreateBook(ctx context.Context, arg db.CreateBookParams) (db.Book, error) {
-	return db.Book{}, nil
-}
-
-func (m *MockQuerier) CreateMissingBook(ctx context.Context, arg db.CreateMissingBookParams) (db.Book, error) {
-	return db.Book{}, nil
-}
-
-func (m *MockQuerier) CreateSeries(ctx context.Context, arg db.CreateSeriesParams) (db.Series, error) {
-	return db.Series{}, nil
-}
-
-func (m *MockQuerier) GetAuthorByName(ctx context.Context, name string) (db.Author, error) {
-	return db.Author{}, nil
-}
-
-func (m *MockQuerier) GetAuthorsForBook(ctx context.Context, bookID int64) ([]db.Author, error) {
-	return nil, nil
-}
-
-func (m *MockQuerier) GetBook(ctx context.Context, id int64) (db.Book, error) {
-	return db.Book{}, nil
-}
-
-func (m *MockQuerier) GetBookByBookID(ctx context.Context, bookID int64) (db.Book, error) {
-	return db.Book{}, nil
-}
-
-func (m *MockQuerier) GetBooksBySeries(ctx context.Context, seriesID *int64) ([]db.Book, error) {
-	return nil, nil
-}
-
-func (m *MockQuerier) GetSeries(ctx context.Context, id int64) (db.Series, error) {
-	return db.Series{}, nil
-}
-
-func (m *MockQuerier) GetSeriesAuthors(ctx context.Context, seriesID int64) ([]db.Author, error) {
-	return nil, nil
-}
-
-func (m *MockQuerier) GetSeriesByGoodreadsID(ctx context.Context, seriesID int64) (db.Series, error) {
-	return db.Series{}, nil
-}
-
-func (m *MockQuerier) GetSeriesBySeriesID(ctx context.Context, seriesID int64) (db.Series, error) {
-	return db.Series{}, nil
-}
-
-func (m *MockQuerier) LinkBookAuthor(ctx context.Context, arg db.LinkBookAuthorParams) error {
-	return nil
-}
-
-func (m *MockQuerier) LinkSeriesAuthor(ctx context.Context, arg db.LinkSeriesAuthorParams) error {
-	return nil
-}
-
-func (m *MockQuerier) ListBooks(ctx context.Context, arg db.ListBooksParams) ([]db.Book, error) {
-	return nil, nil
-}
-
-func (m *MockQuerier) ListSeries(ctx context.Context, arg db.ListSeriesParams) ([]db.Series, error) {
-	return nil, nil
-}
-
-func (m *MockQuerier) SetConfig(ctx context.Context, arg db.SetConfigParams) error {
-	return nil
-}
-
-func (m *MockQuerier) UpdateBookSeries(ctx context.Context, arg db.UpdateBookSeriesParams) error {
-	return nil
-}
-
-func (m *MockQuerier) UpsertAuthor(ctx context.Context, name string) (db.Author, error) {
-	return db.Author{}, nil
-}
-
-func (m *MockQuerier) UpsertBook(ctx context.Context, arg db.UpsertBookParams) (db.Book, error) {
-	return db.Book{}, nil
-}
-
-func (m *MockQuerier) UpsertSeries(ctx context.Context, arg db.UpsertSeriesParams) (db.Series, error) {
-	return db.Series{}, nil
-}
 
 func TestServer_handleGetConfig(t *testing.T) {
 	tests := []struct {
@@ -243,12 +138,12 @@ func TestServer_handleGetConfig(t *testing.T) {
 			for key, value := range tt.envVars {
 				os.Setenv(key, value)
 			}
-
+			mockQuerier := db.NewMockQuerier(t)
+			mockQuerier.On("GetConfig", mock.Anything, mock.Anything).Return(tt.getConfigFn)
+			_ = mockQuerier
 			// Create server with mock queries
 			server := &Server{
-				queries: &MockQuerier{
-					getConfigFn: tt.getConfigFn,
-				},
+				queries: mockQuerier,
 			}
 
 			// Create request and response recorder

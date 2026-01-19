@@ -11,18 +11,23 @@
     let error = $state<string | null>(null);
     let isConfigured = $state(false);
 
-    onMount(async () => {
-        if (browser) {
-            // Subscribe to config changes - config is already loaded by layout
-            const unsubscribe = configStore.subscribe(config => {
-                isConfigured = !!(config.serverUrl && config.username && config.password);
-            });
+    onMount(() => {
+        if (!browser) {
+            return;
+        }
 
-            if (!isConfigured) {
-                loading = false;
-                return () => unsubscribe();
-            }
+        // Subscribe to config changes - config is already loaded by layout
+        const unsubscribe = configStore.subscribe(config => {
+            isConfigured = !!(config.serverUrl && config.username && config.password);
+        });
 
+        if (!isConfigured) {
+            loading = false;
+            return unsubscribe;
+        }
+
+        // Load data if configured
+        (async () => {
             try {
                 console.log("Loading home page data...");
                 const [booksRes, seriesRes] = await Promise.all([
@@ -37,9 +42,9 @@
             } finally {
                 loading = false;
             }
+        })();
 
-            return unsubscribe;
-        }
+        return unsubscribe;
     });
 </script>
 
