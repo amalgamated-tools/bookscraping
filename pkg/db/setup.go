@@ -114,8 +114,8 @@ func runMigrations(sqlDB *sql.DB) error {
 		}
 
 		// Read migration file
-		filepath := filepath.Join(migrationsDir, filename)
-		content, err := os.ReadFile(filepath)
+		migrationPath := filepath.Join(migrationsDir, filename)
+		content, err := os.ReadFile(migrationPath)
 		if err != nil {
 			return fmt.Errorf("failed to read migration file %s: %w", filename, err)
 		}
@@ -126,31 +126,39 @@ func runMigrations(sqlDB *sql.DB) error {
 			return fmt.Errorf("migration %s has no '-- migrate:up' section", filename)
 		}
 
+		// Run this migration in a transaction to ensure all-or-nothing execution
+		tx, err := sqlDB.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction for migration %s: %w", filename, err)
+		}
+
 		// Execute migration - split by semicolon to handle multiple statements
 		statements := splitStatements(upSQL)
 		for _, stmt := range statements {
 			if strings.TrimSpace(stmt) == "" {
 				continue
 			}
-			_, err := sqlDB.ExecContext(ctx, stmt)
-			if err != nil {
-				// Check if this is an idempotent operation that already exists
-				errMsg := err.Error()
-				if strings.Contains(errMsg, "already exists") ||
-					strings.Contains(errMsg, "duplicate column") ||
-					strings.Contains(errMsg, "duplicate index") {
-					slog.Debug("Skipping already-applied operation", slog.String("migration", filename), slog.String("error", errMsg))
-					continue
+
+			if _, err := tx.ExecContext(ctx, stmt); err != nil {
+				// Any error means the migration did not fully apply; roll back.
+				if rbErr := tx.Rollback(); rbErr != nil {
+					return fmt.Errorf("failed to execute migration %s: %v (rollback error: %w)", filename, err, rbErr)
 				}
 				return fmt.Errorf("failed to execute migration %s: %w", filename, err)
 			}
 		}
 
-		// Record migration
-		if _, err := sqlDB.ExecContext(ctx, "INSERT INTO schema_migrations (version) VALUES (?)", version); err != nil {
+		// Record migration within the same transaction
+		if _, err := tx.ExecContext(ctx, "INSERT INTO schema_migrations (version) VALUES (?)", version); err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				return fmt.Errorf("failed to record migration %s: %v (rollback error: %w)", filename, err, rbErr)
+			}
 			return fmt.Errorf("failed to record migration %s: %w", filename, err)
 		}
 
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("failed to commit migration %s: %w", filename, err)
+		}
 		slog.Info("Migration applied", slog.String("version", version))
 	}
 
