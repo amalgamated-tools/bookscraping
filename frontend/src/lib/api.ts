@@ -93,6 +93,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     });
 
     if (!response.ok) {
+        console.error(`API error: ${response.status} ${response.statusText}`);
         throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
 

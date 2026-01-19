@@ -18,7 +18,7 @@
 	$effect(() => {
 		if (browser) {
 			// Load config once when page mounts
-			console.log("Config page mounted, loading config...");
+			console.debug("Config page mounted, loading config...");
 			loadConfig();
 
 			// Subscribe to config store to populate form
@@ -51,6 +51,7 @@
 			testSuccess = true;
 			testMessage = response.message || "Connection successful!";
 		} catch (e) {
+			console.error("Test connection failed:", e);
 			testSuccess = false;
 			testMessage = e instanceof Error ? e.message : "Connection failed";
 		} finally {

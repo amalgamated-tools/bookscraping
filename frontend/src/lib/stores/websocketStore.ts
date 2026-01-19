@@ -19,6 +19,7 @@ const createSSEStore = () => {
 	let reconnectAttempts = 0;
 
 	const connect = () => {
+		console.debug("SSE connect called");
 		if (!browser || eventSource) {
 			return;
 		}
@@ -26,21 +27,42 @@ const createSSEStore = () => {
 		set({ status: "connecting", eventSource: null, lastMessage: null });
 
 		const url = `/api/events`;
-		console.log("Attempting to connect to SSE:", url);
+		console.debug("Attempting to connect to SSE:", url);
 		eventSource = new EventSource(url);
 
 		eventSource.addEventListener("open", () => {
-			console.log("SSE connection opened");
+			console.debug("SSE connection opened");
 			reconnectAttempts = 0;
 			set({ status: "open", eventSource, lastMessage: null });
 		});
 
 		eventSource.addEventListener("message", event => {
-			console.log("SSE message received:", event.data);
-			update(state => ({
-				...state,
-				lastMessage: typeof event.data === "string" ? event.data : null
-			}));
+			console.debug("SSE message received:", event.data);
+
+			// Try to parse as JSON for better logging
+			try {
+				const data = JSON.parse(event.data);
+				console.debug("SSE event parsed:", data);
+
+				// Log different event types
+				if (data.type === "connected") {
+					console.debug("Connected to SSE with clientId:", data.clientId);
+				} else {
+					console.debug("Event received:", data);
+				}
+
+				update(state => ({
+					...state,
+					lastMessage: event.data
+				}));
+			} catch (e) {
+				// Not JSON, just log as string
+				console.debug("SSE raw message:", event.data);
+				update(state => ({
+					...state,
+					lastMessage: event.data
+				}));
+			}
 		});
 
 		eventSource.addEventListener("error", () => {
@@ -52,13 +74,14 @@ const createSSEStore = () => {
 			if (browser) {
 				const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000);
 				reconnectAttempts += 1;
-				console.log("Will reconnect in", delay, "ms (attempt", reconnectAttempts, ")");
+				console.debug("Will reconnect in", delay, "ms (attempt", reconnectAttempts, ")");
 				reconnectTimeout = window.setTimeout(connect, delay);
 			}
 		});
 	};
 
 	const disconnect = () => {
+		console.debug("SSE disconnect called");
 		if (reconnectTimeout) {
 			window.clearTimeout(reconnectTimeout);
 			reconnectTimeout = undefined;

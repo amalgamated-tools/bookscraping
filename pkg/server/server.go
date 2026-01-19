@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
@@ -55,13 +56,18 @@ type Server struct {
 	shutdownFuncs []ShutdownFunc
 
 	eventCh chan string
+
+	// SSE client tracking
+	sseClients map[string]chan string
+	sseMu      sync.RWMutex
 }
 
 // NewServer creates a new server instance
 func NewServer(opts ...ServerOption) *Server {
 	s := &Server{
-		mux:     http.NewServeMux(),
-		eventCh: make(chan string, 100),
+		mux:        http.NewServeMux(),
+		eventCh:    make(chan string, 100),
+		sseClients: make(map[string]chan string),
 	}
 	for _, opt := range opts {
 		opt(s)

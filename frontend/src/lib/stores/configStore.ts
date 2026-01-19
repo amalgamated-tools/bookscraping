@@ -21,14 +21,15 @@ let configLoaded = false;
 // Load config from the API - only once
 export async function loadConfig() {
 	if (!browser || configLoaded) {
-		console.log("Config already loaded or not in browser.");
+		console.debug("Config already loaded or not in browser.");
 		return;
 	}
 
 	try {
-		console.log("Loading config from API...");
+		console.debug("Loading config from API...");
 		const config = await api.getConfig();
-		console.log("Config loaded:", config);
+		// log the loaded config for debugging (avoid logging password)
+		console.debug("Config loaded:", { serverUrl: config.serverUrl, username: config.username });
 		configStore.set(config);
 		configLoaded = true;
 	} catch (err) {
