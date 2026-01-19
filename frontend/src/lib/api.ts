@@ -74,6 +74,10 @@ export const api = {
     );
   },
 
+  async getBook(id: number): Promise<Book> {
+    return fetchApi<Book>(`/books/${id}`);
+  },
+
   // Series
   async getSeries(page = 1, perPage = 20): Promise<PaginatedResponse<Series>> {
     return fetchApi<PaginatedResponse<Series>>(

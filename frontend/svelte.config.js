@@ -12,11 +12,16 @@ const config = {
       assets: "build",
       fallback: "index.html",
       precompress: false,
-      strict: true,
+      strict: false,
     }),
     paths: {
       // Base path if serving from a subpath
       base: "",
+    },
+    prerender: {
+      entries: ["/", "/config", "/series"],
+      handleMissingId: "ignore",
+      handleUnseenRoutes: "ignore",
     },
   },
 };
