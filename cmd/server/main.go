@@ -2,19 +2,19 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/server"
 	_ "modernc.org/sqlite"
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	cancelCtx, cancelAll := context.WithCancel(context.Background())
 
 	if err := realMain(cancelCtx); err != nil {
@@ -36,34 +36,10 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		return err
 	}
 
-	// Get database path from environment or use default
-	dbPath, ok := os.LookupEnv("DATABASE_URL")
-	if !ok {
-		slog.Info("DATABASE_URL not set, using default path './db/bookscraping.db'")
-		dbPath = "./db/bookscraping.db"
-	} else {
-		dbPath = strings.TrimPrefix(dbPath, "sqlite:")
-		slog.Info("Using database path from DATABASE_URL", slog.String("path", dbPath))
-	}
-
-	// Open database
-	slog.Info("Opening database", slog.String("path", dbPath))
-	sqlDB, err := sql.Open("sqlite", dbPath)
+	queries, err := db.SetupDatabase()
 	if err != nil {
-		slog.Error("Failed to open database", slog.String("path", dbPath), slog.Any("error", err))
-		os.Exit(1)
+		return fmt.Errorf("failed to setup database: %w", err)
 	}
-	defer sqlDB.Close()
-
-	// Create queries instance
-	queries := db.New(sqlDB)
-	count, err := queries.CountBooks(context.Background())
-	if err != nil {
-		slog.Error("Failed to count books in database", slog.Any("error", err))
-		os.Exit(1)
-	}
-	slog.Info("Database connected", slog.Int64("book_count", count))
-
 	// Get server address
 	addr, ok := os.LookupEnv("SERVER_ADDR")
 	if !ok {
@@ -75,13 +51,12 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 
 	// Start server
 	srv := server.NewServer(
-		server.WithQueries(queries),
+		server.WithQuerier(queries),
 		server.WithAddr(addr),
 	)
 
 	slog.Info("Starting BookScraping server",
 		slog.String("address", addr),
-		slog.String("database", dbPath),
 	)
 
 	return srv.Run(cancelCtx)

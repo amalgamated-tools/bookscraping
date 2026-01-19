@@ -21,6 +21,11 @@ build-server: build-frontend
 dev:
 	overmind start -f Procfile.dev || goreman -f Procfile.dev start || foreman start -f Procfile.dev
 
+run: reset-db dev
+
+reset-db:
+	dbmate drop && dbmate up && dbmate dump           
+
 # Development mode - run frontend dev server with proxy to Go backend
 dev-frontend:
 	cd frontend && pnpm run dev
