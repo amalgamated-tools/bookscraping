@@ -102,6 +102,12 @@ JOIN series_authors sa ON a.id = sa.author_id
 WHERE sa.series_id = ?
 ORDER BY a.name ASC;
 
+-- name: GetAuthorsForMultipleSeries :many
+SELECT sa.series_id, a.id, a.name FROM authors a
+JOIN series_authors sa ON a.id = sa.author_id
+WHERE sa.series_id IN (sqlc.slice('series_ids'))
+ORDER BY sa.series_id, a.name ASC;
+
 -- name: LinkSeriesAuthor :exec
 INSERT INTO series_authors (series_id, author_id)
 VALUES (?, ?)
@@ -141,3 +147,19 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 -- name: GetMultipleConfig :many
 SELECT key, value FROM configuration
 WHERE key IN (?);
+
+-- name: ListSeriesWithBookStats :many
+SELECT 
+    s.id,
+    s.series_id,
+    s.name,
+    s.description,
+    s.url,
+    s.data,
+    COUNT(b.id) as total_books,
+    COUNT(CASE WHEN b.is_missing = 1 THEN 1 END) as missing_books
+FROM series s
+LEFT JOIN books b ON s.id = b.series_id
+GROUP BY s.id, s.series_id, s.name, s.description, s.url, s.data
+ORDER BY s.id ASC
+LIMIT ? OFFSET ?;

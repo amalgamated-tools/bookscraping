@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+frontend/node_modules
+frontend/.svelte-kit
+frontend/build
+
+# Go
+bin/
+*.o
+*.a
+*.so
+.DS_Store
+
+# Development
+.env
+.env.local
+.env.*.local
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.air.toml
+.mockery.yml
+Procfile.dev
+
+# Build artifacts
+dist/
+build/
+
+# Documentation
+README.md
+AGENTS.md
+Makefile
+
+# Testing
+coverage.out
+*.test

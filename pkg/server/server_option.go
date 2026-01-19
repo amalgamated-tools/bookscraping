@@ -8,9 +8,9 @@ import (
 
 type ServerOption func(*Server)
 
-func WithQueries(queries *db.Queries) ServerOption {
+func WithQuerier(querier db.Querier) ServerOption {
 	return func(s *Server) {
-		s.queries = queries
+		s.queries = querier
 	}
 }
 

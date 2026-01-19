@@ -30,6 +30,11 @@ export interface Series {
   authors?: string[];
 }
 
+export interface SeriesWithStats extends Series {
+  total_books: number;
+  missing_books: number;
+}
+
 export interface SyncSeriesResponse {
   status: string;
   message: string;
@@ -123,6 +128,15 @@ export const api = {
   async getSeries(page = 1, perPage = 20): Promise<PaginatedResponse<Series>> {
     return fetchApi<PaginatedResponse<Series>>(
       `/series?page=${page}&per_page=${perPage}`,
+    );
+  },
+
+  async getSeriesWithStats(
+    page = 1,
+    perPage = 20,
+  ): Promise<PaginatedResponse<SeriesWithStats>> {
+    return fetchApi<PaginatedResponse<SeriesWithStats>>(
+      `/series/with-stats?page=${page}&per_page=${perPage}`,
     );
   },
 
