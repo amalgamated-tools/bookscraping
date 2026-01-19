@@ -17,6 +17,14 @@ type SeriesWithAuthors struct {
 	Authors []string `json:"authors"`
 }
 
+// SeriesWithStats wraps a Series with book statistics
+type SeriesWithStats struct {
+	*db.Series
+	Authors      []string `json:"authors"`
+	TotalBooks   int64    `json:"total_books"`
+	MissingBooks int64    `json:"missing_books"`
+}
+
 // BookWithAuthors wraps a Book with its authors
 type BookWithAuthors struct {
 	*db.Book
@@ -79,6 +87,74 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, PaginatedResponse{
 		Data:    seriesWithAuthors,
+		Total:   total,
+		Page:    page,
+		PerPage: perPage,
+	})
+}
+
+// handleListSeriesWithStats returns series with book statistics in a single query
+func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Request) {
+	page, perPage := getPagination(r)
+	offset := (page - 1) * perPage
+
+	ctx := context.Background()
+
+	seriesRows, err := s.queries.ListSeriesWithBookStats(ctx, db.ListSeriesWithBookStatsParams{
+		Limit:  int64(perPage),
+		Offset: int64(offset),
+	})
+	if err != nil {
+		slog.Error("Failed to list series with stats", "error", err)
+		writeError(w, http.StatusInternalServerError, "Failed to list series with stats")
+		return
+	}
+
+	// Convert rows to SeriesWithStats
+	seriesWithStats := make([]SeriesWithStats, len(seriesRows))
+	for i, row := range seriesRows {
+		// Fetch authors for each series
+		authors, err := s.queries.GetSeriesAuthors(ctx, row.ID)
+		if err != nil {
+			slog.Error("Failed to get authors for series", "series_id", row.ID, "error", err)
+			authors = []db.Author{}
+		}
+
+		authorNames := make([]string, len(authors))
+		for j, author := range authors {
+			authorNames[j] = author.Name
+		}
+
+		// Convert MissingBooks from *float64 to int64
+		missingBooks := int64(0)
+		if row.MissingBooks != nil {
+			missingBooks = int64(*row.MissingBooks)
+		}
+
+		seriesWithStats[i] = SeriesWithStats{
+			Series: &db.Series{
+				ID:          row.ID,
+				SeriesID:    row.SeriesID,
+				Name:        row.Name,
+				Description: row.Description,
+				Url:         row.Url,
+				Data:        row.Data,
+			},
+			Authors:      authorNames,
+			TotalBooks:   row.TotalBooks,
+			MissingBooks: missingBooks,
+		}
+	}
+
+	total, err := s.queries.CountSeries(ctx)
+	if err != nil {
+		slog.Error("Failed to count series", "error", err)
+		writeError(w, http.StatusInternalServerError, "Failed to count series")
+		return
+	}
+
+	writeJSON(w, PaginatedResponse{
+		Data:    seriesWithStats,
 		Total:   total,
 		Page:    page,
 		PerPage: perPage,

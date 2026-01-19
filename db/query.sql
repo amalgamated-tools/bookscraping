@@ -141,3 +141,19 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 -- name: GetMultipleConfig :many
 SELECT key, value FROM configuration
 WHERE key IN (?);
+
+-- name: ListSeriesWithBookStats :many
+SELECT 
+    s.id,
+    s.series_id,
+    s.name,
+    s.description,
+    s.url,
+    s.data,
+    COUNT(b.id) as total_books,
+    SUM(CASE WHEN b.is_missing = 1 THEN 1 ELSE 0 END) as missing_books
+FROM series s
+LEFT JOIN books b ON s.id = b.series_id
+GROUP BY s.id, s.series_id, s.name, s.description, s.url, s.data
+ORDER BY s.id ASC
+LIMIT ? OFFSET ?;
