@@ -12,19 +12,6 @@ updates:
     labels:
       - "gomod"
       - "dependencies"      
-  - package-ecosystem: docker
-    registries:
-      - ghcr
-    directory: "/"
-    schedule:
-      interval: daily
-    labels:
-      - "docker"
-      - "dependencies"
-    groups:
-      baseImages:
-        patterns:
-          - "*"  
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
