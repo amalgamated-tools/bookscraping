@@ -17,12 +17,6 @@ type SeriesWithAuthors struct {
 	Authors []string `json:"authors"`
 }
 
-// BookWithAuthors wraps a Book with its authors
-type BookWithAuthors struct {
-	*db.Book
-	Authors []string `json:"authors"`
-}
-
 // SyncSeriesResponse contains the result of syncing a series with Goodreads
 type SyncSeriesResponse struct {
 	Status          string `json:"status"`
@@ -83,82 +77,6 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 		Page:    page,
 		PerPage: perPage,
 	})
-}
-
-func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid series ID")
-		return
-	}
-
-	series, err := s.queries.GetSeries(context.Background(), id)
-	if err != nil {
-		slog.Error("Failed to get series", "id", id, "error", err)
-		writeError(w, http.StatusNotFound, "Series not found")
-		return
-	}
-
-	// Fetch authors for the series
-	authors, err := s.queries.GetSeriesAuthors(context.Background(), id)
-	if err != nil {
-		slog.Error("Failed to get authors for series", "series_id", id, "error", err)
-		authors = []db.Author{}
-	}
-
-	authorNames := make([]string, len(authors))
-	for i, author := range authors {
-		authorNames[i] = author.Name
-	}
-
-	seriesWithAuthors := SeriesWithAuthors{
-		Series:  &series,
-		Authors: authorNames,
-	}
-
-	writeJSON(w, seriesWithAuthors)
-}
-
-// handleGetSeriesBooks returns all books in a series
-func (s *Server) handleGetSeriesBooks(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid series ID")
-		return
-	}
-
-	ctx := context.Background()
-
-	books, err := s.queries.GetBooksBySeries(ctx, &id)
-	if err != nil {
-		slog.Error("Failed to get books for series", "series_id", id, "error", err)
-		writeError(w, http.StatusInternalServerError, "Failed to get books for series")
-		return
-	}
-
-	// Fetch authors for each book
-	booksWithAuthors := make([]BookWithAuthors, len(books))
-	for i, book := range books {
-		authors, err := s.queries.GetAuthorsForBook(ctx, book.ID)
-		if err != nil {
-			slog.Error("Failed to get authors for book", "book_id", book.ID, "error", err)
-			authors = []db.Author{}
-		}
-
-		authorNames := make([]string, len(authors))
-		for j, author := range authors {
-			authorNames[j] = author.Name
-		}
-
-		booksWithAuthors[i] = BookWithAuthors{
-			Book:    &books[i],
-			Authors: authorNames,
-		}
-	}
-
-	writeJSON(w, booksWithAuthors)
 }
 
 // handleGetSeriesFromGoodreads fetches series data from Goodreads and creates missing books

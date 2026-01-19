@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 )
 
@@ -89,62 +88,4 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 	s.blClient.UpdateCredentials(req.ServerURL, req.Username, req.Password)
 
 	writeJSON(w, map[string]string{"status": "success"})
-}
-
-func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
-	var req ConfigRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	if req.ServerURL == "" || req.Username == "" || req.Password == "" {
-		writeError(w, http.StatusBadRequest, "Missing credentials")
-		return
-	}
-
-	ctx := r.Context()
-
-	// Create a temporary client with the provided credentials
-	client := booklore.NewClient(req.ServerURL, req.Username, req.Password)
-
-	// Try to login
-	if err := client.Login(); err != nil {
-		slog.Error("Test connection failed", "error", err)
-		writeError(w, http.StatusUnauthorized, "Connection failed: "+err.Error())
-		return
-	}
-
-	// Get the token from the client
-	token := client.GetToken()
-	if token.AccessToken == "" {
-		slog.Error("No access token returned from login")
-		writeError(w, http.StatusInternalServerError, "No token returned from Booklore")
-		return
-	}
-
-	// Store the access token in the database
-	err := s.queries.SetConfig(ctx, db.SetConfigParams{
-		Key:   "booklore_access_token",
-		Value: token.AccessToken,
-	})
-	if err != nil {
-		slog.Error("Failed to store access token", "error", err)
-		writeError(w, http.StatusInternalServerError, "Failed to store token")
-		return
-	}
-
-	// Optionally store the refresh token as well
-	if token.RefreshToken != "" {
-		err := s.queries.SetConfig(ctx, db.SetConfigParams{
-			Key:   "booklore_refresh_token",
-			Value: token.RefreshToken,
-		})
-		if err != nil {
-			slog.Warn("Failed to store refresh token", "error", err)
-			// Don't fail the whole operation if refresh token storage fails
-		}
-	}
-
-	writeJSON(w, map[string]string{"status": "success", "message": "Connection successful!"})
 }

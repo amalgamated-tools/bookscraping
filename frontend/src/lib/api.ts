@@ -46,43 +46,6 @@ export interface PaginatedResponse<T> {
   per_page: number;
 }
 
-export interface BookloreMetadata {
-  bookId: number;
-  title: string;
-  description?: string;
-  publisher?: string;
-  publishedDate?: string;
-  seriesName?: string;
-  seriesNumber?: number;
-  seriesTotal?: number;
-  isbn13?: string;
-  isbn10?: string;
-  asin?: string;
-  pageCount?: number;
-  language?: string;
-  goodreadsId?: string;
-  googleId?: string;
-  hardcoverId?: string;
-  hardcoverBookId?: number;
-  authors?: string[];
-  categories?: string[];
-}
-
-export interface BookloreBook {
-  id: number;
-  bookType: string;
-  libraryId: number;
-  fileName: string;
-  addedOn: string;
-  metadata: BookloreMetadata;
-}
-
-export interface BookloreAuthResponse {
-  isDefaultPassword: string;
-  accessToken: string;
-  refreshToken: string;
-}
-
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit,
@@ -111,14 +74,6 @@ export const api = {
     );
   },
 
-  async getBook(id: number): Promise<Book> {
-    return fetchApi<Book>(`/books/${id}`);
-  },
-
-  async searchBooks(query: string): Promise<Book[]> {
-    return fetchApi<Book[]>(`/books/search?q=${encodeURIComponent(query)}`);
-  },
-
   // Series
   async getSeries(page = 1, perPage = 20): Promise<PaginatedResponse<Series>> {
     return fetchApi<PaginatedResponse<Series>>(
@@ -137,42 +92,6 @@ export const api = {
   async fetchSeriesFromGoodreads(id: number): Promise<SyncSeriesResponse> {
     return fetchApi<SyncSeriesResponse>(`/series/${id}/goodreads`, {
       method: "POST",
-    });
-  },
-
-  // Goodreads integration
-  async searchGoodreads(query: string): Promise<Book[]> {
-    return fetchApi<Book[]>(`/goodreads/search?q=${encodeURIComponent(query)}`);
-  },
-
-  async getGoodreadsBook(id: string): Promise<Book> {
-    return fetchApi<Book>(`/goodreads/book/${id}`);
-  },
-
-  async getGoodreadsSeries(id: string): Promise<Series> {
-    return fetchApi<Series>(`/goodreads/series/${id}`);
-  },
-
-  // Test Booklore connection via backend
-  async testConnection(
-    serverUrl: string,
-    username: string,
-    password: string,
-  ): Promise<{ status: string; message: string }> {
-    return fetchApi<{ status: string; message: string }>("/testConnection", {
-      method: "POST",
-      body: JSON.stringify({ serverUrl, username, password }),
-    });
-  },
-
-  async syncBooks(
-    server_url?: string,
-    username?: string,
-    password?: string,
-  ): Promise<void> {
-    return fetchApi<void>("/sync", {
-      method: "POST",
-      body: JSON.stringify({ server_url, username, password }),
     });
   },
 

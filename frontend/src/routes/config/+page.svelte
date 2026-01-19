@@ -11,9 +11,6 @@
 	let username = $state("");
 	let password = $state("");
 	let success = $state(false);
-	let testing = $state(false);
-	let testMessage = $state("");
-	let testSuccess = $state(false);
 
 	$effect(() => {
 		if (browser) {
@@ -32,39 +29,12 @@
 		}
 	});
 
-	async function handleTest() {
-		if (!serverUrl || !username || !password) {
-			testMessage = "Please fill in all fields first";
-			testSuccess = false;
-			return;
-		}
-
-		testing = true;
-		testMessage = "";
-
-		try {
-			const response = await api.testConnection(
-				serverUrl,
-				username,
-				password,
-			);
-			testSuccess = true;
-			testMessage = response.message || "Connection successful!";
-		} catch (e) {
-			console.error("Test connection failed:", e);
-			testSuccess = false;
-			testMessage = e instanceof Error ? e.message : "Connection failed";
-		} finally {
-			testing = false;
-		}
-	}
-
 	async function handleSave(e: Event) {
 		e.preventDefault();
 
 		if (browser) {
 			try {
-				// Save to backend only - the backend will handle authentication
+				// Save to backend
 				await api.saveConfig(serverUrl, username, password);
 
 				// Update the store with new config
@@ -124,22 +94,8 @@
 		</div>
 
 		<div class="button-group">
-			<button
-				type="button"
-				class="test-btn"
-				onclick={handleTest}
-				disabled={testing}
-			>
-				{testing ? "Testing..." : "Test Connection"}
-			</button>
 			<button type="submit">Save Configuration</button>
 		</div>
-
-		{#if testMessage}
-			<div class="message {testSuccess ? 'success' : 'error'}">
-				{testMessage}
-			</div>
-		{/if}
 
 		{#if success}
 			<div class="message success">Configuration saved successfully!</div>
@@ -212,16 +168,6 @@
 		cursor: not-allowed;
 	}
 
-	.test-btn {
-		background: #fff;
-		color: #2c3e50;
-		border: 2px solid #2c3e50;
-	}
-
-	.test-btn:hover {
-		background: #f8f9fa;
-	}
-
 	.message {
 		margin-top: 1rem;
 		padding: 0.75rem;
@@ -233,11 +179,5 @@
 		background-color: #d4edda;
 		border: 1px solid #c3e6cb;
 		color: #155724;
-	}
-
-	.error {
-		background-color: #f8d7da;
-		border: 1px solid #f5c6cb;
-		color: #721c24;
 	}
 </style>

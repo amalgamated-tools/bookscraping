@@ -86,9 +86,11 @@ func (s *Server) Run(ctx context.Context) error {
 	slog.Info("Running server", "address", s.Address)
 	ctx, cancel := context.WithCancel(ctx)
 
+	timeoutHandler := http.TimeoutHandler(s.mux, HTTPRequestTimeout, "Request timeout")
+
 	s.httpServer = &http.Server{
 		Addr:         s.Address,
-		Handler:      s.mux,
+		Handler:      timeoutHandler,
 		WriteTimeout: HTTPWriteTimeout,
 		ReadTimeout:  HTTPReadTimeout,
 		IdleTimeout:  HTTPIdleTimeout,
@@ -97,7 +99,7 @@ func (s *Server) Run(ctx context.Context) error {
 	go func() {
 		err := s.httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			slog.Error("HTTP server error", "error", err)
+			slog.Error("HTTP server error", slog.Any("error", err))
 			s.shutdownFuncs = append(s.shutdownFuncs, func(_ context.Context) error {
 				return err
 			})
@@ -132,11 +134,8 @@ func (s *Server) setupRoutes() {
 	// API routes
 	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
-	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
 
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
-	s.mux.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
-	s.mux.HandleFunc("GET /api/series/{id}/books", s.handleGetSeriesBooks)
 	s.mux.HandleFunc("POST /api/series/{id}/goodreads", s.handleGetSeriesFromGoodreads)
 
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)
