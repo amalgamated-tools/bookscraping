@@ -135,6 +135,7 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
 
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
+	s.mux.HandleFunc("GET /api/series/with-stats", s.handleListSeriesWithStats)
 	s.mux.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
 	s.mux.HandleFunc("GET /api/series/{id}/books", s.handleGetSeriesBooks)
 	s.mux.HandleFunc("POST /api/series/{id}/goodreads", s.handleGetSeriesFromGoodreads)

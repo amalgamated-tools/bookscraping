@@ -1,12 +1,11 @@
 <script lang="ts">
-    import { api, type Series, type Book } from "$lib/api";
+    import { api, type SeriesWithStats } from "$lib/api";
     import { browser } from "$app/environment";
     import { onMount } from "svelte";
     import { configStore } from "$lib/stores/configStore";
 
-    let allSeries = $state<Series[]>([]);
-    let seriesWithBooks = $state<(Series & { books: Book[] })[]>([]);
-    let incompleteSeries = $state<(Series & { books: Book[]; missingCount: number })[]>([]);
+    let allSeries = $state<SeriesWithStats[]>([]);
+    let incompleteSeries = $state<SeriesWithStats[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
     let isConfigured = $state(false);
@@ -34,32 +33,13 @@
         (async () => {
             try {
                 console.log("Loading series data...");
-                const seriesRes = await api.getSeries(1, 100);
+                const seriesRes = await api.getSeriesWithStats(1, 100);
                 allSeries = seriesRes.data ?? [];
 
-                // Fetch books for each series to find incomplete ones
-                const seriesData = await Promise.all(
-                    allSeries.map(async (series) => {
-                        try {
-                            const books = await api.getSeriesBooks(series.id);
-                            return { ...series, books: books || [] };
-                        } catch (e) {
-                            console.error(`Failed to load books for series ${series.id}`, e);
-                            return { ...series, books: [] };
-                        }
-                    })
-                );
-
-                seriesWithBooks = seriesData;
-
-                // Find incomplete series (those with missing books marked is_missing: true)
-                incompleteSeries = seriesData
-                    .map((series) => {
-                        const missingCount = series.books.filter((b) => b.is_missing).length;
-                        return { ...series, missingCount };
-                    })
-                    .filter((series) => series.missingCount > 0)
-                    .sort((a, b) => b.missingCount - a.missingCount);
+                // Find incomplete series (those with missing books > 0)
+                incompleteSeries = allSeries
+                    .filter((series) => series.missing_books > 0)
+                    .sort((a, b) => b.missing_books - a.missing_books);
             } catch (e) {
                 console.error("Failed to load series data", e);
                 error = e instanceof Error ? e.message : "Failed to load data";
@@ -115,14 +95,14 @@
                         <div class="series-card">
                             <div class="series-header">
                                 <h3>{series.name}</h3>
-                                <span class="missing-badge">{series.missingCount} missing</span>
+                                <span class="missing-badge">{series.missing_books} missing</span>
                             </div>
                             {#if series.description}
                                 <p class="description">{series.description.substring(0, 100)}...</p>
                             {/if}
                             <div class="series-stats">
-                                <span>{series.books.length} books total</span>
-                                <span>{series.books.filter((b) => !b.is_missing).length} owned</span>
+                                <span>{series.total_books} books total</span>
+                                <span>{series.total_books - series.missing_books} owned</span>
                             </div>
                             <a href="/series/{series.id}" class="action-btn">View Series</a>
                         </div>
@@ -139,7 +119,7 @@
                 <h2>📚 All Series</h2>
                 <p class="section-subtitle">Browse your complete series collection</p>
                 <div class="series-grid">
-                    {#each seriesWithBooks.slice(0, 6) as series}
+                    {#each allSeries.slice(0, 6) as series}
                         <div class="series-card">
                             <div class="series-header">
                                 <h3>{series.name}</h3>
@@ -148,7 +128,7 @@
                                 <p class="description">{series.description.substring(0, 100)}...</p>
                             {/if}
                             <div class="series-stats">
-                                <span>{series.books.length} books</span>
+                                <span>{series.total_books} books</span>
                                 {#if series.authors && series.authors.length > 0}
                                     <span>{series.authors.join(", ")}</span>
                                 {/if}
