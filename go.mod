@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/buger/jsonparser v1.1.1
+	golang.org/x/sync v0.16.0
 	modernc.org/sqlite v1.42.2
 )
 

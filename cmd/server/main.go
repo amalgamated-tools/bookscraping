@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -13,6 +15,27 @@ import (
 )
 
 func main() {
+	cancelCtx, cancelAll := context.WithCancel(context.Background())
+
+	if err := realMain(cancelCtx); err != nil {
+		fmt.Println(fmt.Errorf("\nerror: %w", err))
+		// tools.FreakOut(cancelCtx, err, cancelAll)
+		cancelAll()
+	}
+}
+
+// This is the real main function. That's why it's called realMain.
+func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The newctx context comes from the StartTracer function, so it's already wrapped.
+	flagSet := flag.NewFlagSet("http", flag.ExitOnError)
+
+	var port int
+	flagSet.IntVar(&port, "port", 0, "port number to run http server on")
+
+	err := flagSet.Parse(os.Args[1:])
+	if err != nil {
+		return err
+	}
+
 	// Get database path from environment or use default
 	dbPath, ok := os.LookupEnv("DATABASE_URL")
 	if !ok {
@@ -61,8 +84,5 @@ func main() {
 		slog.String("database", dbPath),
 	)
 
-	if err := srv.Start(); err != nil {
-		slog.Error("Server failed", slog.Any("error", err))
-		os.Exit(1)
-	}
+	return srv.Run(cancelCtx)
 }
