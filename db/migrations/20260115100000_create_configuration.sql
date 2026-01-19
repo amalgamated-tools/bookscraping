@@ -1,5 +1,5 @@
 -- migrate:up
-CREATE TABLE configuration (
+CREATE TABLE IF NOT EXISTS configuration (
     key VARCHAR(255) PRIMARY KEY,
     value TEXT NOT NULL
 );

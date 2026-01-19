@@ -7,10 +7,8 @@ import (
 	"log/slog"
 	"os"
 
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/server"
-	_ "modernc.org/sqlite"
 )
 
 func main() {
