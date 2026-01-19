@@ -3,6 +3,8 @@ package telemetry
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"runtime"
@@ -24,21 +26,28 @@ type Payload struct {
 func Send(version string) {
 	// Opt-out
 	if os.Getenv("TELEMETRY_ENABLED") == "false" {
+		slog.Info("Telemetry disabled via TELEMETRY_ENABLED=false")
 		return
 	}
 
 	endpoint := os.Getenv("TELEMETRY_ENDPOINT")
 	if endpoint == "" {
+		slog.Info("Telemetry endpoint not set, skipping telemetry")
 		return
 	}
 
 	// Only send once per install
 	if _, err := os.Stat(installIDPath); err == nil {
+		slog.Info("Telemetry already sent for this install, skipping")
 		return
 	}
 
 	id := uuid.New().String()
-	_ = os.WriteFile(installIDPath, []byte(id), 0644)
+	err := os.WriteFile(installIDPath, []byte(id), 0644)
+	if err != nil {
+		slog.Error("Failed to write install ID", "error", err)
+		return
+	}
 
 	payload := Payload{
 		InstallID: id,
@@ -52,6 +61,7 @@ func Send(version string) {
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
 	if err != nil {
+		slog.Error("Failed to create telemetry request", "error", err)
 		return
 	}
 
@@ -60,5 +70,24 @@ func Send(version string) {
 	client := &http.Client{
 		Timeout: 3 * time.Second,
 	}
-	_, _ = client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.Error("Failed to send telemetry request", "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("Telemetry request failed", "status", resp.StatusCode)
+		return
+	}
+
+	// write out response to log
+	slog.Info("Telemetry sent successfully")
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Error("Failed to read telemetry response", "error", err)
+		return
+	}
+	slog.Info("Telemetry response", "body", string(body))
 }

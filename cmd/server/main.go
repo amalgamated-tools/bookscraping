@@ -9,7 +9,10 @@ import (
 
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/server"
+	"github.com/amalgamated-tools/bookscraping/pkg/telemetry"
 )
+
+var Version = "dev"
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
@@ -24,6 +27,7 @@ func main() {
 
 // This is the real main function. That's why it's called realMain.
 func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The newctx context comes from the StartTracer function, so it's already wrapped.
+	telemetry.Send(Version)
 	flagSet := flag.NewFlagSet("http", flag.ExitOnError)
 
 	var port int
