@@ -210,7 +210,7 @@ func splitStatements(sql string) []string {
 			inString = true
 			stringChar = char
 			current.WriteRune(char)
-		} else if inString && rune(char) == stringChar {
+		} else if inString && char == stringChar {
 			if i+1 < len(runes) && runes[i+1] == stringChar {
 				// Escaped quote
 				current.WriteRune(char)
