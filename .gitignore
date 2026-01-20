@@ -19,3 +19,4 @@ tmp/
 bookscraping
 pkg/server/dist/
 data/install_id
+telemetry-worker/wrangler-copy.jsonc
