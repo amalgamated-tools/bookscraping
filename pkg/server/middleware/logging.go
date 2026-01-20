@@ -7,7 +7,7 @@ import (
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		slog.InfoContext(
+		slog.DebugContext(
 			r.Context(),
 			"Incoming request",
 			slog.String("method", r.Method),
