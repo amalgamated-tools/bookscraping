@@ -15,16 +15,16 @@ import (
 )
 
 func SetupDatabase() (Querier, error) {
-	slog.Info("Setting up database")
+	slog.Debug("Setting up database")
 
 	// Determine database path: prefer mounted /data folder, fall back to ./db
 	var dbFilePath string
 	if _, err := os.Stat("/data"); err == nil {
 		dbFilePath = "/data/bookscraping.db"
-		slog.Info("Using mounted /data folder", slog.String("path", dbFilePath))
+		slog.Debug("Using mounted /data folder", slog.String("path", dbFilePath))
 	} else {
 		dbFilePath = "./db/bookscraping.db"
-		slog.Info("Using local db folder", slog.String("path", dbFilePath))
+		slog.Debug("Using local db folder", slog.String("path", dbFilePath))
 	}
 
 	// Ensure parent directory exists
@@ -35,7 +35,7 @@ func SetupDatabase() (Querier, error) {
 	}
 
 	// Open database with modernc.org/sqlite pure Go driver
-	slog.Info("Opening database", slog.String("path", dbFilePath))
+	slog.Debug("Opening database", slog.String("path", dbFilePath))
 	sqlDB, err := sql.Open("sqlite", dbFilePath)
 	if err != nil {
 		slog.Error("Failed to open database", slog.String("path", dbFilePath), slog.Any("error", err))
@@ -48,7 +48,7 @@ func SetupDatabase() (Querier, error) {
 		sqlDB.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
-	slog.Info("Database created and migrated successfully", slog.String("path", dbFilePath))
+	slog.Debug("Database created and migrated successfully", slog.String("path", dbFilePath))
 
 	// Create queries instance
 	queries := New(sqlDB)
@@ -58,7 +58,7 @@ func SetupDatabase() (Querier, error) {
 		sqlDB.Close()
 		return nil, fmt.Errorf("failed to count books in database: %w", err)
 	}
-	slog.Info("Database connected", slog.Int64("book_count", count))
+	slog.Debug("Database connected", slog.Int64("book_count", count))
 	return queries, nil
 }
 

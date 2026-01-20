@@ -83,7 +83,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	slog.Info("Running server", "address", s.Address)
+	slog.Debug("Running server", "address", s.Address)
 	ctx, cancel := context.WithCancel(ctx)
 
 	s.httpServer = &http.Server{
@@ -190,7 +190,7 @@ func (s *Server) setupBookloreClient() {
 		if s.queries == nil {
 			slog.Warn("No database queries available, BookLore client will have no configuration")
 		} else {
-			slog.Info("Loading BookLore configuration from database")
+			slog.Debug("Loading BookLore configuration from database")
 			dbServerURL, err := s.queries.GetConfig(ctx, "serverUrl")
 			if err == nil && dbServerURL != "" {
 				serverURL = dbServerURL

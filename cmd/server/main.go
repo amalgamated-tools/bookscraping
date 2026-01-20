@@ -99,9 +99,9 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	addr, ok := os.LookupEnv("SERVER_ADDR")
 	if !ok {
 		addr = ":8080"
-		slog.Info("SERVER_ADDR not set, using default address ':8080'")
+		slog.Debug("SERVER_ADDR not set, using default address ':8080'")
 	} else {
-		slog.Info("Using server address from SERVER_ADDR", slog.String("address", addr))
+		slog.Debug("Using server address from SERVER_ADDR", slog.String("address", addr))
 	}
 
 	// Start server
