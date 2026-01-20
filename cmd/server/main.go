@@ -28,6 +28,7 @@ func main() {
 func setupLogger() {
 	format := "json"
 	level := slog.LevelInfo
+	addSource := false
 
 	logFormat, ok := os.LookupEnv("LOG_FORMAT")
 	if ok {
@@ -39,6 +40,7 @@ func setupLogger() {
 		switch logLevel {
 		case "debug":
 			level = slog.LevelDebug
+			addSource = true
 		case "info":
 			level = slog.LevelInfo
 		case "warn":
@@ -52,9 +54,9 @@ func setupLogger() {
 
 	var logger *slog.Logger
 	if format == "json" {
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: level}))
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: addSource, Level: level}))
 	} else {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: level}))
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: addSource, Level: level}))
 	}
 
 	// Try to get version from build info
