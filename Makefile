@@ -1,4 +1,4 @@
-.PHONY: all build build-frontend build-server dev clean install-frontend fmt migrate sqlc test test-go test-frontend test-format
+.PHONY: all build build-frontend build-server build-telemetry dev clean install-frontend install-telemetry fmt migrate sqlc test test-go test-frontend test-format dev-telemetry deploy-telemetry
 
 # Default target
 all: build
@@ -21,6 +21,16 @@ build-server: build-frontend
 dev:
 	overmind start -f Procfile.dev || goreman -f Procfile.dev start || foreman start -f Procfile.dev
 
+# Telemetry worker targets
+dev-telemetry:
+	cd telemetry-worker && pnpm run dev
+
+deploy-telemetry:
+	cd telemetry-worker && pnpm run deploy
+
+install-telemetry:
+	cd telemetry-worker && pnpm install
+
 run: reset-db dev
 
 reset-db:
@@ -42,6 +52,7 @@ clean:
 	rm -rf pkg/server/dist
 	mkdir -p pkg/server/dist
 	rm -f data/install_id
+	rm -rf telemetry-worker/node_modules
 
 # Install frontend dependencies
 install-frontend:
@@ -51,6 +62,7 @@ install-frontend:
 fmt:
 	go fmt ./...
 	cd frontend && pnpm run format
+	cd telemetry-worker && pnpm run format || true
 
 # Run database migrations
 migrate:
