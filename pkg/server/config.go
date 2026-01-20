@@ -20,19 +20,19 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Try to get from database first
-	serverUrl, err := s.queries.GetConfig(ctx, "serverUrl")
+	serverUrl, err := s.queries.GetConfig(ctx, db.ConfigKeyServerURL)
 	if err != nil || serverUrl == "" {
 		// Fall back to environment variable
 		serverUrl = os.Getenv("BOOKLORE_SERVER")
 	}
 
-	username, err := s.queries.GetConfig(ctx, "username")
+	username, err := s.queries.GetConfig(ctx, db.ConfigKeyUsername)
 	if err != nil || username == "" {
 		// Fall back to environment variable
 		username = os.Getenv("BOOKLORE_USERNAME")
 	}
 
-	password, err := s.queries.GetConfig(ctx, "password")
+	password, err := s.queries.GetConfig(ctx, db.ConfigKeyPassword)
 	if err != nil || password == "" {
 		// Fall back to environment variable
 		password = os.Getenv("BOOKLORE_PASSWORD")
@@ -46,66 +46,22 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	methodLogger := slog.With(slog.String("handler", "handleSaveConfig"))
+
+	methodLogger.DebugContext(ctx, "Unmarshaling request body")
+
 	var req ConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		methodLogger.ErrorContext(ctx, "Failed to decode request body", slog.Any("error", err))
 		writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	ctx := r.Context()
-
-	// Save each config item
-	err := s.queries.SetConfig(ctx, db.SetConfigParams{
-		Key:   "serverUrl",
-		Value: req.ServerURL,
-	})
-	if err != nil {
-		slog.Error("Failed to save serverUrl", slog.Any("error", err))
-		writeError(w, http.StatusInternalServerError, "Failed to save configuration")
-		return
-	}
-
-	err = s.queries.SetConfig(ctx, db.SetConfigParams{
-		Key:   "username",
-		Value: req.Username,
-	})
-	if err != nil {
-		slog.Error("Failed to save username", slog.Any("error", err))
-		writeError(w, http.StatusInternalServerError, "Failed to save configuration")
-		return
-	}
-
-	err = s.queries.SetConfig(ctx, db.SetConfigParams{
-		Key:   "password",
-		Value: req.Password,
-	})
-	if err != nil {
-		slog.Error("Failed to save password", slog.Any("error", err))
-		writeError(w, http.StatusInternalServerError, "Failed to save configuration")
-		return
-	}
-
-	// Update the booklore client with new credentials
-	s.blClient.UpdateCredentials(req.ServerURL, req.Username, req.Password)
-
-	writeJSON(w, map[string]string{"status": "success"})
-}
-
-func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	logger := slog.With(slog.String("handler", "handleTestConnection"))
-
-	logger.Debug("Testing Booklore connection")
-
-	var req ConfigRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.ErrorContext(ctx, "Failed to decode request body", slog.Any("error", err))
-		writeError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
+	methodLogger.DebugContext(ctx, "Unmarshaled request body")
 
 	if req.ServerURL == "" || req.Username == "" || req.Password == "" {
-		logger.ErrorContext(ctx, "Missing credentials in request")
+		methodLogger.ErrorContext(ctx, "Missing credentials in request")
 		writeError(w, http.StatusBadRequest, "Missing credentials")
 		return
 	}
@@ -115,7 +71,7 @@ func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 
 	// Try to login
 	if err := client.Login(ctx); err != nil {
-		logger.ErrorContext(ctx, "Test connection failed", slog.Any("error", err))
+		methodLogger.ErrorContext(ctx, "Test connection failed", slog.Any("error", err))
 		writeError(w, http.StatusUnauthorized, "Connection failed: "+err.Error())
 		return
 	}
@@ -123,33 +79,31 @@ func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 	// Get the token from the client
 	token := client.GetToken()
 	if token.AccessToken == "" {
-		logger.ErrorContext(ctx, "No access token returned from login")
+		methodLogger.ErrorContext(ctx, "No access token returned from login")
 		writeError(w, http.StatusInternalServerError, "No token returned from Booklore")
 		return
 	}
 
-	// Store the access token in the database
-	err := s.queries.SetConfig(ctx, db.SetConfigParams{
-		Key:   "booklore_access_token",
-		Value: token.AccessToken,
-	})
-	if err != nil {
-		logger.ErrorContext(ctx, "Failed to store access token", slog.Any("error", err))
-		writeError(w, http.StatusInternalServerError, "Failed to store token")
-		return
-	}
-
-	// Optionally store the refresh token as well
-	if token.RefreshToken != "" {
-		err := s.queries.SetConfig(ctx, db.SetConfigParams{
-			Key:   "booklore_refresh_token",
-			Value: token.RefreshToken,
-		})
-		if err != nil {
-			logger.WarnContext(ctx, "Failed to store refresh token", slog.Any("error", err))
-			// Don't fail the whole operation if refresh token storage fails
+	// Store the configuration in the database
+	for key, value := range map[string]string{
+		db.ConfigKeyBookloreToken:    token.AccessToken,
+		db.ConfigKeyBookloreRefToken: token.RefreshToken,
+		db.ConfigKeyServerURL:        req.ServerURL,
+		db.ConfigKeyUsername:         req.Username,
+		db.ConfigKeyPassword:         req.Password,
+	} {
+		if err := s.queries.SetConfig(ctx, db.SetConfigParams{
+			Key:   key,
+			Value: value,
+		}); err != nil {
+			methodLogger.ErrorContext(ctx, "Failed to save config", slog.String("key", key), slog.Any("error", err))
+			writeError(w, http.StatusInternalServerError, "Failed to save configuration")
+			return
 		}
 	}
 
-	writeJSON(w, map[string]string{"status": "success", "message": "Connection successful!"})
+	// Update the booklore client with new credentials
+	s.blClient = client
+
+	writeJSON(w, map[string]string{"status": "success"})
 }

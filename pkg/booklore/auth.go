@@ -110,7 +110,8 @@ func (c *Client) performLogin(ctx context.Context) error {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		slog.Error("Login request failed", slog.Any("error", err))
+		// log the error type and message
+		slog.Error("Login request failed", slog.Any("error", err), slog.String("error_type", fmt.Sprintf("%T", err)))
 		return err
 	}
 

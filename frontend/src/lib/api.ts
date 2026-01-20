@@ -110,19 +110,19 @@ async function fetchApi<T>(
 
 export const api = {
   // Books
-  async getBooks(page = 1, perPage = 20): Promise<PaginatedResponse<Book>> {
-    return fetchApi<PaginatedResponse<Book>>(
-      `/books?page=${page}&per_page=${perPage}`,
-    );
-  },
+  // async getBooks(page = 1, perPage = 20): Promise<PaginatedResponse<Book>> {
+  //   return fetchApi<PaginatedResponse<Book>>(
+  //     `/books?page=${page}&per_page=${perPage}`,
+  //   );
+  // },
 
-  async getBook(id: number): Promise<Book> {
-    return fetchApi<Book>(`/books/${id}`);
-  },
+  // async getBook(id: number): Promise<Book> {
+  //   return fetchApi<Book>(`/books/${id}`);
+  // },
 
-  async searchBooks(query: string): Promise<Book[]> {
-    return fetchApi<Book[]>(`/books/search?q=${encodeURIComponent(query)}`);
-  },
+  // async searchBooks(query: string): Promise<Book[]> {
+  //   return fetchApi<Book[]>(`/books/search?q=${encodeURIComponent(query)}`);
+  // },
 
   // Series
   async getSeries(page = 1, perPage = 20): Promise<PaginatedResponse<Series>> {

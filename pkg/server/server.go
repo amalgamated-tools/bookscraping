@@ -143,15 +143,14 @@ func (s *Server) setupRoutes() {
 	// API routes
 	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
-	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
+
+	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
 	s.mux.HandleFunc("GET /api/series/with-stats", s.handleListSeriesWithStats)
 	s.mux.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
 	s.mux.HandleFunc("GET /api/series/{id}/books", s.handleGetSeriesBooks)
 	s.mux.HandleFunc("POST /api/series/{id}/goodreads", s.handleGetSeriesFromGoodreads)
-
-	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
 	s.mux.HandleFunc("GET /api/events", s.handleEvents)
 	s.mux.HandleFunc("POST /api/events/trigger", s.handleTriggerEvent)
