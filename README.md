@@ -130,12 +130,34 @@ make sqlc
 ## Running
 
 ```bash
-./bin/bookscraping-server
+./bin/bookscraping-server -version  # Show version and exit
+./bin/bookscraping-server           # Start server on port 8080
 ```
 
 Server starts on `http://localhost:8080`
 
 Configure Booklore credentials in the `/config` page, then sync your library.
+
+### Docker
+
+Container images are automatically built and published to GitHub Container Registry for each release:
+
+```bash
+# Run with latest version
+docker run -p 8080:8080 ghcr.io/amalgamated-tools/bookscraping:latest
+
+# Run specific version
+docker run -p 8080:8080 ghcr.io/amalgamated-tools/bookscraping:v1.0.0
+
+# With custom database location
+docker run -p 8080:8080 -v /path/to/data:/data ghcr.io/amalgamated-tools/bookscraping:latest
+```
+
+Tags available:
+- `latest` - Latest version from main branch
+- `v*` - Semantic version tags (v1.0.0, etc.)
+- `main` - Latest from main branch
+- SHA tags - Specific commit builds
 
 ## Goodreads Integration
 
@@ -150,11 +172,13 @@ Uses [goquery](https://github.com/PuerkitoBio/goquery) for HTML parsing. Since G
 
 ```bash
 # Server
-PORT=8080                          # HTTP server port
-LOG_LEVEL=info                     # Log level (debug, info, warn, error)
+SERVER_ADDR=:8080                  # Server address and port (default: :8080)
 
 # Database
 DB_PATH=./bookscraping.db          # SQLite database file path
+
+# Telemetry
+TELEMETRY_ENABLED=true             # Enable/disable telemetry (default: true)
 ```
 
 
