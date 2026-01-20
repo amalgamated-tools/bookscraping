@@ -75,7 +75,7 @@ A full-stack application for managing and synchronizing book libraries from Book
 
 ### Tech Stack
 
-- **Backend**: Go 1.25+, net/http, sqlc, goquery
+- **Backend**: Go 1.25.6, net/http, sqlc, goquery
 - **Frontend**: SvelteKit, Svelte 5, TypeScript, Vite
 - **Database**: SQLite (modernc.org/sqlite)
 - **Build**: Make, pnpm, Vite
@@ -84,7 +84,7 @@ A full-stack application for managing and synchronizing book libraries from Book
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.25.6
 - Node.js 18+ and pnpm
 - Make
 

@@ -20,7 +20,7 @@ RUN pnpm run build
 
 
 # Build stage for backend
-FROM golang:1.25-alpine AS backend-builder
+FROM golang:1.25.6-alpine AS backend-builder
 
 WORKDIR /app
 
