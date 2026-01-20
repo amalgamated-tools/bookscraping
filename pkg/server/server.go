@@ -16,6 +16,9 @@ import (
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
+	"github.com/amalgamated-tools/bookscraping/pkg/otel"
+	"github.com/amalgamated-tools/bookscraping/pkg/server/middleware"
+	"github.com/justinas/alice"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -83,13 +86,20 @@ func NewServer(ctx context.Context, opts ...ServerOption) *Server {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-
+	newctx, span := otel.StartTracer(ctx, "server.Run")
+	defer span.End()
 	slog.Debug("Running server", slog.String("address", s.Address))
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(newctx)
+
+	chain := alice.New(
+		middleware.RequestIDHandler,
+		otel.TraceMiddleware,
+		middleware.LoggingMiddleware,
+	).Then(s.mux)
 
 	s.httpServer = &http.Server{
 		Addr:         s.Address,
-		Handler:      s.mux,
+		Handler:      chain,
 		WriteTimeout: HTTPWriteTimeout,
 		ReadTimeout:  HTTPReadTimeout,
 		IdleTimeout:  HTTPIdleTimeout,
