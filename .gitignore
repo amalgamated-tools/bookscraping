@@ -18,3 +18,4 @@ tmp/
 .idea/
 bookscraping
 pkg/server/dist/
+data/install_id

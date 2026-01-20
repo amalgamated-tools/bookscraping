@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime/debug"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	"github.com/amalgamated-tools/bookscraping/pkg/server"
@@ -15,27 +16,79 @@ import (
 var Version = "dev"
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	setupLogger()
 	cancelCtx, cancelAll := context.WithCancel(context.Background())
 
 	if err := realMain(cancelCtx); err != nil {
 		fmt.Println(fmt.Errorf("\nerror: %w", err))
-		// tools.FreakOut(cancelCtx, err, cancelAll)
 		cancelAll()
 	}
 }
 
+func setupLogger() {
+	format := "json"
+	level := slog.LevelInfo
+
+	logFormat, ok := os.LookupEnv("LOG_FORMAT")
+	if ok {
+		format = logFormat
+	}
+
+	logLevel, ok := os.LookupEnv("LOG_LEVEL")
+	if ok {
+		switch logLevel {
+		case "debug":
+			level = slog.LevelDebug
+		case "info":
+			level = slog.LevelInfo
+		case "warn":
+			level = slog.LevelWarn
+		case "error":
+			level = slog.LevelError
+		default:
+			level = slog.LevelInfo
+		}
+	}
+	var logger *slog.Logger
+	if format == "json" {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	} else {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	}
+
+	// Try to get version from build info
+	info, ok := debug.ReadBuildInfo()
+	if ok {
+		if info.Main.Version != "" {
+			Version = info.Main.Version
+		}
+	}
+
+	logger = logger.With(slog.String("version", Version))
+	slog.SetDefault(logger)
+
+	telemetry.Send(Version)
+}
+
 // This is the real main function. That's why it's called realMain.
 func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The newctx context comes from the StartTracer function, so it's already wrapped.
-	telemetry.Send(Version)
 	flagSet := flag.NewFlagSet("http", flag.ExitOnError)
 
-	var port int
+	var (
+		port    int
+		showVer bool
+	)
 	flagSet.IntVar(&port, "port", 0, "port number to run http server on")
+	flagSet.BoolVar(&showVer, "version", false, "show version and exit")
 
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
 		return err
+	}
+
+	if showVer {
+		fmt.Println(Version)
+		os.Exit(0)
 	}
 
 	queries, err := db.SetupDatabase()

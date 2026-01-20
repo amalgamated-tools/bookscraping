@@ -8,12 +8,11 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-const installIDPath = "/data/install_id"
 
 type Payload struct {
 	InstallID string `json:"install_id"`
@@ -24,16 +23,36 @@ type Payload struct {
 }
 
 func Send(version string) {
-	// Opt-out
-	if os.Getenv("TELEMETRY_ENABLED") == "false" {
-		slog.Info("Telemetry disabled via TELEMETRY_ENABLED=false")
+	// Telemetry is opt-in meaning it is disabled by default unless explicitly enabled
+	envTelemetryEnabled, ok := os.LookupEnv("TELEMETRY_ENABLED")
+	if ok {
+		slog.Debug("Telemetry environment variable found", slog.String("TELEMETRY_ENABLED", envTelemetryEnabled))
+
+		if !strings.EqualFold(envTelemetryEnabled, "true") {
+			slog.Debug("Telemetry is disabled via TELEMETRY_ENABLED environment variable")
+			return
+		}
+	} else {
+		slog.Warn("TELEMETRY_ENABLED environment variable not set, telemetry is disabled by default")
 		return
 	}
 
 	endpoint := os.Getenv("TELEMETRY_ENDPOINT")
 	if endpoint == "" {
-		slog.Info("Telemetry endpoint not set, skipping telemetry")
-		return
+		slog.Info("Telemetry endpoint not set, using default")
+		endpoint = "https://telemetry-worker.amalgamated-tools.workers.dev"
+	}
+
+	slog.Warn("NOTICE: This application collects anonymous telemetry data to help improve the product. To disable telemetry, set the environment variable TELEMETRY_ENABLED=false")
+
+	var installIDPath string
+	// Determine install ID path: prefer mounted /data folder, fall back to ./data
+	if _, err := os.Stat("/data"); err == nil {
+		installIDPath = "/data/install_id"
+		slog.Info("Using mounted /data folder for install ID", slog.String("path", installIDPath))
+	} else {
+		installIDPath = "./data/install_id"
+		slog.Info("Using local data folder for install ID", slog.String("path", installIDPath))
 	}
 
 	// Only send once per install
@@ -42,12 +61,9 @@ func Send(version string) {
 		return
 	}
 
+	slog.Info("Install ID not found, sending telemetry data")
+	// Create install ID
 	id := uuid.New().String()
-	err := os.WriteFile(installIDPath, []byte(id), 0644)
-	if err != nil {
-		slog.Error("Failed to write install ID", "error", err)
-		return
-	}
 
 	payload := Payload{
 		InstallID: id,
@@ -90,4 +106,10 @@ func Send(version string) {
 		return
 	}
 	slog.Info("Telemetry response", "body", string(body))
+
+	err = os.WriteFile(installIDPath, []byte(id), 0644)
+	if err != nil {
+		slog.Error("Failed to write install ID", "error", err)
+		return
+	}
 }
