@@ -11,7 +11,7 @@ This worker receives telemetry pings from BookScraping clients and stores instal
 - First seen timestamp
 
 1. Sign up for [Cloudflare Workers](https://workers.dev). The free tier is more than enough for most use cases.
-2. Clone this project and install dependencies with `npm install`
+2. Clone this project and install dependencies with `pnpm install`
 3. Run `wrangler login` to login to your Cloudflare account in wrangler
 4. Create a KV namespace for telemetry data:
    ```bash
