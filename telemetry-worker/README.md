@@ -10,7 +10,22 @@ This worker receives telemetry pings from BookScraping clients and stores instal
 - OS and architecture
 - First seen timestamp
 
+1. Sign up for [Cloudflare Workers](https://workers.dev). The free tier is more than enough for most use cases.
+2. Clone this project and install dependencies with `npm install`
+3. Run `wrangler login` to login to your Cloudflare account in wrangler
+4. Create a KV namespace for telemetry data:
+   ```bash
+   wrangler kv:namespace create "TELEMETRY_KV"
+   ```
+   This will output a namespace ID that you'll need in the next step.
+5. Configure your KV namespace:
+   - Copy `wrangler.jsonc.example` to `wrangler.jsonc` (if not already present)
+   - Uncomment the `kv_namespaces` section in `wrangler.jsonc`
+   - Replace `YOUR_KV_NAMESPACE_ID_HERE` with the ID from step 4
+6. Run `wrangler deploy` to publish the API to Cloudflare Workers
+
 Only the first ping from each unique installation is stored to count new installations.
+
 
 ## Endpoints
 
