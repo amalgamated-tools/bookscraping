@@ -93,8 +93,8 @@ func (s *Server) Run(ctx context.Context) error {
 
 	chain := alice.New(
 		middleware.RequestIDHandler,
-		middleware.LoggingMiddleware,
 		otel.TraceMiddleware,
+		middleware.LoggingMiddleware,
 	).Then(s.mux)
 
 	s.httpServer = &http.Server{
