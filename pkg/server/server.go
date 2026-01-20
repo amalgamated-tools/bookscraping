@@ -63,7 +63,7 @@ type Server struct {
 }
 
 // NewServer creates a new server instance
-func NewServer(opts ...ServerOption) *Server {
+func NewServer(ctx context.Context, opts ...ServerOption) *Server {
 	s := &Server{
 		mux:        http.NewServeMux(),
 		eventCh:    make(chan string, 100),
@@ -78,12 +78,13 @@ func NewServer(opts ...ServerOption) *Server {
 	s.Address = net.JoinHostPort("0.0.0.0", strconv.Itoa(s.port))
 
 	s.setupRoutes()
-	s.setupBookloreClient()
+	s.setupBookloreClient(ctx)
 	return s
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	slog.Debug("Running server", "address", s.Address)
+
+	slog.Debug("Running server", slog.String("address", s.Address))
 	ctx, cancel := context.WithCancel(ctx)
 
 	s.httpServer = &http.Server{
@@ -97,7 +98,7 @@ func (s *Server) Run(ctx context.Context) error {
 	go func() {
 		err := s.httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			slog.Error("HTTP server error", "error", err)
+			slog.Error("HTTP server error", slog.Any("error", err))
 			s.shutdownFuncs = append(s.shutdownFuncs, func(_ context.Context) error {
 				return err
 			})
@@ -148,7 +149,7 @@ func (s *Server) setupRoutes() {
 	// Serve embedded frontend
 	distContent, err := fs.Sub(distFS, "dist")
 	if err != nil {
-		slog.Error("Failed to get embedded dist folder", "error", err)
+		slog.Error("Failed to get embedded dist folder", slog.Any("error", err))
 		return
 	}
 
@@ -178,30 +179,52 @@ func (s *Server) setupRoutes() {
 	})
 }
 
-func (s *Server) setupBookloreClient() {
-	if s.blClient == nil {
-		serverURL := ""
-		username := ""
-		password := ""
+func (s *Server) setupBookloreClient(ctx context.Context) {
+	methodLogger := slog.With(
+		slog.String("method", "setupBookloreClient"),
+		slog.String("component", "server"),
+		slog.Bool("initialized", s.blClient != nil),
+	)
 
-		ctx := context.Background()
+	if s.blClient == nil {
+		methodLogger.InfoContext(ctx, "Setting up BookLore client")
+		var serverURL, username, password string
 
 		// Try to get config from database if queries are available
 		if s.queries == nil {
-			slog.Warn("No database queries available, BookLore client will have no configuration")
-		} else {
-			slog.Debug("Loading BookLore configuration from database")
-			dbServerURL, err := s.queries.GetConfig(ctx, "serverUrl")
-			if err == nil && dbServerURL != "" {
-				serverURL = dbServerURL
-			}
-			dbUsername, err := s.queries.GetConfig(ctx, "username")
-			if err == nil && dbUsername != "" {
-				username = dbUsername
-			}
-			dbPassword, err := s.queries.GetConfig(ctx, "password")
-			if err == nil && dbPassword != "" {
-				password = dbPassword
+			methodLogger.WarnContext(ctx, "No database queries available, BookLore client will have no configuration")
+			return
+		}
+
+		methodLogger.DebugContext(ctx, "Loading BookLore configuration from database")
+
+		configs, err := s.queries.GetMultipleConfig(ctx, []string{"serverUrl", "username", "password"})
+		if err != nil {
+			methodLogger.ErrorContext(ctx, "Failed to load BookLore configuration from database", slog.Any("error", err))
+			return
+		}
+
+		if len(configs) == 0 {
+			methodLogger.DebugContext(ctx, "No BookLore configuration found in database")
+			return
+		}
+
+		methodLogger.DebugContext(ctx, "Loaded BookLore configuration from database")
+
+		for _, cfg := range configs {
+			switch cfg.Key {
+			case "serverUrl":
+				if cfg.Value != "" {
+					serverURL = cfg.Value
+				}
+			case "username":
+				if cfg.Value != "" {
+					username = cfg.Value
+				}
+			case "password":
+				if cfg.Value != "" {
+					password = cfg.Value
+				}
 			}
 		}
 
@@ -213,13 +236,17 @@ func (s *Server) setupBookloreClient() {
 // JSON response helpers
 func writeJSON(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("Failed to encode JSON response", slog.Any("error", err))
+	}
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	if err := json.NewEncoder(w).Encode(map[string]string{"error": message}); err != nil {
+		slog.Error("Failed to encode error response", slog.Any("error", err))
+	}
 }
 
 // Pagination helper

@@ -146,7 +146,7 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 
 -- name: GetMultipleConfig :many
 SELECT key, value FROM configuration
-WHERE key IN (?);
+WHERE key IN (sqlc.slice('keys'));
 
 -- name: ListSeriesWithBookStats :many
 SELECT 

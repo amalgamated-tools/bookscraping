@@ -2,6 +2,7 @@ package booklore
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/buger/jsonparser"
@@ -24,7 +25,11 @@ func (c *Client) LoadAllBooks() ([]Book, error) {
 		return nil, err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", slog.Any("error", err))
+		}
+	}()
 	// read the response body
 	// #nosec G304
 	body, err := io.ReadAll(res.Body)
@@ -32,9 +37,12 @@ func (c *Client) LoadAllBooks() ([]Book, error) {
 		return nil, err
 	}
 
-	jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	_, err = jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		books = append(books, processBookJSON(value))
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return books, nil
 }
@@ -56,10 +64,13 @@ func processBookJSON(value []byte) Book {
 	book.GoodreadsId, _ = jsonparser.GetString(value, "metadata", "goodreadsId")
 	book.GoogleId, _ = jsonparser.GetString(value, "metadata", "googleId")
 	authors := []string{}
-	jsonparser.ArrayEach(value, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	_, err := jsonparser.ArrayEach(value, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		author, _ := jsonparser.ParseString(value)
 		authors = append(authors, author)
 	}, "metadata", "authors")
+	if err != nil {
+		slog.Error("Failed to parse authors", slog.Int64("book_id", book.ID), slog.String("title", book.Title), slog.Any("error", err))
+	}
 	book.Authors = authors
 
 	return book

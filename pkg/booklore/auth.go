@@ -1,6 +1,7 @@
 package booklore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,9 +23,9 @@ type Token struct {
 
 // Login performs login and saves the token to .booklore_credentials.json
 // if the file exists, it reads the file and unmarshals into c.token and validates the token
-func (c *Client) Login() error {
+func (c *Client) Login(ctx context.Context) error {
 	slog.Info("Logging in to BookLore...")
-	return c.performLogin()
+	return c.performLogin(ctx)
 }
 
 // ValidateToken checks if the current token is valid by making a request to /api/v1/users/me
@@ -43,7 +44,11 @@ func (c *Client) ValidateToken() error {
 		return err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", slog.Any("error", err))
+		}
+	}()
 	if res.StatusCode != 200 {
 		return fmt.Errorf("invalid token")
 	}
@@ -63,7 +68,11 @@ func (c *Client) RefreshToken() error {
 		return err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", slog.Any("error", err))
+		}
+	}()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
@@ -88,35 +97,40 @@ func (c *Client) RefreshToken() error {
 	return nil
 }
 
-func (c *Client) performLogin() error {
-	slog.Info("Performing login request to BookLore server...")
+func (c *Client) performLogin(ctx context.Context) error {
+	methodLogger := slog.With(slog.String("method", "performLogin"))
+	methodLogger.Debug("Performing login request to BookLore server...")
+
 	payload := strings.NewReader(`{"username": "` + c.username + `", "password": "` + c.password + `"}`)
 	url := c.baseURL + "/api/v1/auth/login"
-	req, _ := http.NewRequest("POST", url, payload)
+	req, _ := http.NewRequestWithContext(ctx, "POST", url, payload)
 
 	req.Header.Add("accept", "*/*")
 	req.Header.Add("Content-Type", "application/json")
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		slog.Error("Login request failed", "error", err)
+		slog.Error("Login request failed", slog.Any("error", err))
 		return err
 	}
 
 	// log the response status
-	slog.Info("Login response status", "status", res.Status)
+	slog.Info("Login response status", slog.String("status", res.Status))
 	if res.StatusCode != 200 {
-		slog.Error("Login failed", "status", res.Status)
+		slog.Error("Login failed", slog.String("status", res.Status))
 		return fmt.Errorf("login failed with status: %s", res.Status)
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", slog.Any("error", err))
+		}
+	}()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		slog.Error("Failed to read login response body", "error", err)
+		slog.Error("Failed to read login response body", slog.Any("error", err))
 		return err
 	}
-	slog.Debug("Login response", "body", string(body))
 
 	var token Token
 	err = json.Unmarshal(body, &token)

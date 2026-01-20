@@ -53,7 +53,7 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 		Offset: int64(offset),
 	})
 	if err != nil {
-		slog.Error("Failed to list series", "error", err)
+		slog.Error("Failed to list series", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to list series")
 		return
 	}
@@ -63,7 +63,7 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 	for i, singleSeries := range series {
 		authors, err := s.queries.GetSeriesAuthors(ctx, singleSeries.ID)
 		if err != nil {
-			slog.Error("Failed to get authors for series", "series_id", singleSeries.ID, "error", err)
+			slog.Error("Failed to get authors for series", slog.Int64("series_id", singleSeries.ID), slog.Any("error", err))
 			authors = []db.Author{}
 		}
 
@@ -80,7 +80,7 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 
 	total, err := s.queries.CountSeries(ctx)
 	if err != nil {
-		slog.Error("Failed to count series", "error", err)
+		slog.Error("Failed to count series", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to count series")
 		return
 	}
@@ -105,7 +105,7 @@ func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Reques
 		Offset: int64(offset),
 	})
 	if err != nil {
-		slog.Error("Failed to list series with stats", "error", err)
+		slog.Error("Failed to list series with stats", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to list series with stats")
 		return
 	}
@@ -119,7 +119,7 @@ func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Reques
 	// Fetch authors for all series in one query
 	authorsRows, err := s.queries.GetAuthorsForMultipleSeries(ctx, seriesIDs)
 	if err != nil {
-		slog.Error("Failed to get authors for series", "error", err)
+		slog.Error("Failed to get authors for series", slog.Any("error", err))
 		authorsRows = []db.GetAuthorsForMultipleSeriesRow{}
 	}
 
@@ -155,7 +155,7 @@ func (s *Server) handleListSeriesWithStats(w http.ResponseWriter, r *http.Reques
 
 	total, err := s.queries.CountSeries(ctx)
 	if err != nil {
-		slog.Error("Failed to count series", "error", err)
+		slog.Error("Failed to count series", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to count series")
 		return
 	}
@@ -178,7 +178,7 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 
 	series, err := s.queries.GetSeries(context.Background(), id)
 	if err != nil {
-		slog.Error("Failed to get series", "id", id, "error", err)
+		slog.Error("Failed to get series", slog.Int64("id", id), slog.Any("error", err))
 		writeError(w, http.StatusNotFound, "Series not found")
 		return
 	}
@@ -186,7 +186,7 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 	// Fetch authors for the series
 	authors, err := s.queries.GetSeriesAuthors(context.Background(), id)
 	if err != nil {
-		slog.Error("Failed to get authors for series", "series_id", id, "error", err)
+		slog.Error("Failed to get authors for series", slog.Int64("series_id", id), slog.Any("error", err))
 		authors = []db.Author{}
 	}
 
@@ -216,7 +216,7 @@ func (s *Server) handleGetSeriesBooks(w http.ResponseWriter, r *http.Request) {
 
 	books, err := s.queries.GetBooksBySeries(ctx, &id)
 	if err != nil {
-		slog.Error("Failed to get books for series", "series_id", id, "error", err)
+		slog.Error("Failed to get books for series", slog.Int64("series_id", id), slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to get books for series")
 		return
 	}
@@ -226,7 +226,7 @@ func (s *Server) handleGetSeriesBooks(w http.ResponseWriter, r *http.Request) {
 	for i, book := range books {
 		authors, err := s.queries.GetAuthorsForBook(ctx, book.ID)
 		if err != nil {
-			slog.Error("Failed to get authors for book", "book_id", book.ID, "error", err)
+			slog.Error("Failed to get authors for book", slog.Int64("book_id", book.ID), slog.Any("error", err))
 			authors = []db.Author{}
 		}
 
@@ -258,7 +258,7 @@ func (s *Server) handleGetSeriesFromGoodreads(w http.ResponseWriter, r *http.Req
 	// Get the series info
 	series, err := s.queries.GetSeries(ctx, seriesID)
 	if err != nil {
-		slog.Error("Failed to get series", "id", seriesID, "error", err)
+		slog.Error("Failed to get series", slog.Int64("id", seriesID), slog.Any("error", err))
 		writeError(w, http.StatusNotFound, "Series not found")
 		return
 	}
@@ -266,7 +266,7 @@ func (s *Server) handleGetSeriesFromGoodreads(w http.ResponseWriter, r *http.Req
 	// Get existing books in this series
 	existingBooks, err := s.queries.GetBooksBySeries(ctx, &seriesID)
 	if err != nil {
-		slog.Error("Failed to get books for series", "series_id", seriesID)
+		slog.Error("Failed to get books for series", slog.Int64("series_id", seriesID), slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to fetch series books")
 		return
 	}
@@ -286,12 +286,12 @@ func (s *Server) handleGetSeriesFromGoodreads(w http.ResponseWriter, r *http.Req
 	grClient := goodreads.NewClient()
 	booksWithPosition, err := grClient.GetSeriesBooks(goodreadsSeriesID)
 	if err != nil {
-		slog.Error("Failed to fetch Goodreads series", "goodreads_id", goodreadsSeriesID, "error", err)
+		slog.Error("Failed to fetch Goodreads series", slog.String("goodreads_id", goodreadsSeriesID), slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to fetch from Goodreads")
 		return
 	}
 
-	slog.Info("Fetched books from Goodreads", "count", len(booksWithPosition), "series_id", goodreadsSeriesID)
+	slog.Info("Fetched books from Goodreads", slog.Int("count", len(booksWithPosition)), slog.String("series_id", goodreadsSeriesID))
 
 	// Create missing books
 	newMissingCount := 0
@@ -335,11 +335,11 @@ func (s *Server) handleGetSeriesFromGoodreads(w http.ResponseWriter, r *http.Req
 		})
 
 		if err != nil {
-			slog.Error("Failed to create missing book", "book_title", bp.Book.Title, "error", err)
+			slog.Error("Failed to create missing book", slog.String("book_title", bp.Book.Title), slog.Any("error", err))
 			continue
 		}
 
-		slog.Info("Created missing book", "title", bp.Book.Title, "goodreads_id", bp.Book.BookID)
+		slog.Info("Created missing book", slog.String("title", bp.Book.Title), slog.String("goodreads_id", bp.Book.BookID))
 		newMissingCount++
 	}
 

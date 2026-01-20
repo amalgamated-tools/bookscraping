@@ -16,7 +16,7 @@ BookScraping is a full-stack application for managing and synchronizing book lib
 ## Tech Stack
 
 ### Backend
-- **Language**: Go 1.25+
+- **Language**: Go 1.25.6
 - **HTTP**: Standard library `net/http` with `*http.ServeMux` for routing
 - **Database**: SQLite (modernc.org/sqlite) with sqlc for type-safe queries
 - **Logging**: `log/slog` for structured logging

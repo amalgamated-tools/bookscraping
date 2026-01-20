@@ -489,6 +489,74 @@ func (_c *MockQuerier_GetAuthorsForBook_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// GetAuthorsForMultipleSeries provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) GetAuthorsForMultipleSeries(ctx context.Context, seriesIds []int64) ([]GetAuthorsForMultipleSeriesRow, error) {
+	ret := _mock.Called(ctx, seriesIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAuthorsForMultipleSeries")
+	}
+
+	var r0 []GetAuthorsForMultipleSeriesRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]GetAuthorsForMultipleSeriesRow, error)); ok {
+		return returnFunc(ctx, seriesIds)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []GetAuthorsForMultipleSeriesRow); ok {
+		r0 = returnFunc(ctx, seriesIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]GetAuthorsForMultipleSeriesRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = returnFunc(ctx, seriesIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_GetAuthorsForMultipleSeries_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAuthorsForMultipleSeries'
+type MockQuerier_GetAuthorsForMultipleSeries_Call struct {
+	*mock.Call
+}
+
+// GetAuthorsForMultipleSeries is a helper method to define mock.On call
+//   - ctx context.Context
+//   - seriesIds []int64
+func (_e *MockQuerier_Expecter) GetAuthorsForMultipleSeries(ctx interface{}, seriesIds interface{}) *MockQuerier_GetAuthorsForMultipleSeries_Call {
+	return &MockQuerier_GetAuthorsForMultipleSeries_Call{Call: _e.mock.On("GetAuthorsForMultipleSeries", ctx, seriesIds)}
+}
+
+func (_c *MockQuerier_GetAuthorsForMultipleSeries_Call) Run(run func(ctx context.Context, seriesIds []int64)) *MockQuerier_GetAuthorsForMultipleSeries_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []int64
+		if args[1] != nil {
+			arg1 = args[1].([]int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_GetAuthorsForMultipleSeries_Call) Return(getAuthorsForMultipleSeriesRows []GetAuthorsForMultipleSeriesRow, err error) *MockQuerier_GetAuthorsForMultipleSeries_Call {
+	_c.Call.Return(getAuthorsForMultipleSeriesRows, err)
+	return _c
+}
+
+func (_c *MockQuerier_GetAuthorsForMultipleSeries_Call) RunAndReturn(run func(ctx context.Context, seriesIds []int64) ([]GetAuthorsForMultipleSeriesRow, error)) *MockQuerier_GetAuthorsForMultipleSeries_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBook provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) GetBook(ctx context.Context, id int64) (Book, error) {
 	ret := _mock.Called(ctx, id)
@@ -756,8 +824,8 @@ func (_c *MockQuerier_GetConfig_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // GetMultipleConfig provides a mock function for the type MockQuerier
-func (_mock *MockQuerier) GetMultipleConfig(ctx context.Context, key string) ([]Configuration, error) {
-	ret := _mock.Called(ctx, key)
+func (_mock *MockQuerier) GetMultipleConfig(ctx context.Context, keys []string) ([]Configuration, error) {
+	ret := _mock.Called(ctx, keys)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMultipleConfig")
@@ -765,18 +833,18 @@ func (_mock *MockQuerier) GetMultipleConfig(ctx context.Context, key string) ([]
 
 	var r0 []Configuration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]Configuration, error)); ok {
-		return returnFunc(ctx, key)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) ([]Configuration, error)); ok {
+		return returnFunc(ctx, keys)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []Configuration); ok {
-		r0 = returnFunc(ctx, key)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) []Configuration); ok {
+		r0 = returnFunc(ctx, keys)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]Configuration)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, key)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, keys)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -790,20 +858,20 @@ type MockQuerier_GetMultipleConfig_Call struct {
 
 // GetMultipleConfig is a helper method to define mock.On call
 //   - ctx context.Context
-//   - key string
-func (_e *MockQuerier_Expecter) GetMultipleConfig(ctx interface{}, key interface{}) *MockQuerier_GetMultipleConfig_Call {
-	return &MockQuerier_GetMultipleConfig_Call{Call: _e.mock.On("GetMultipleConfig", ctx, key)}
+//   - keys []string
+func (_e *MockQuerier_Expecter) GetMultipleConfig(ctx interface{}, keys interface{}) *MockQuerier_GetMultipleConfig_Call {
+	return &MockQuerier_GetMultipleConfig_Call{Call: _e.mock.On("GetMultipleConfig", ctx, keys)}
 }
 
-func (_c *MockQuerier_GetMultipleConfig_Call) Run(run func(ctx context.Context, key string)) *MockQuerier_GetMultipleConfig_Call {
+func (_c *MockQuerier_GetMultipleConfig_Call) Run(run func(ctx context.Context, keys []string)) *MockQuerier_GetMultipleConfig_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 []string
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].([]string)
 		}
 		run(
 			arg0,
@@ -818,7 +886,7 @@ func (_c *MockQuerier_GetMultipleConfig_Call) Return(configurations []Configurat
 	return _c
 }
 
-func (_c *MockQuerier_GetMultipleConfig_Call) RunAndReturn(run func(ctx context.Context, key string) ([]Configuration, error)) *MockQuerier_GetMultipleConfig_Call {
+func (_c *MockQuerier_GetMultipleConfig_Call) RunAndReturn(run func(ctx context.Context, keys []string) ([]Configuration, error)) *MockQuerier_GetMultipleConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -953,71 +1021,6 @@ func (_c *MockQuerier_GetSeriesAuthors_Call) Return(authors []Author, err error)
 }
 
 func (_c *MockQuerier_GetSeriesAuthors_Call) RunAndReturn(run func(ctx context.Context, seriesID int64) ([]Author, error)) *MockQuerier_GetSeriesAuthors_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAuthorsForMultipleSeries provides a mock function for the type MockQuerier
-func (_mock *MockQuerier) GetAuthorsForMultipleSeries(ctx context.Context, seriesIds []int64) ([]GetAuthorsForMultipleSeriesRow, error) {
-	ret := _mock.Called(ctx, seriesIds)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAuthorsForMultipleSeries")
-	}
-
-	var r0 []GetAuthorsForMultipleSeriesRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]GetAuthorsForMultipleSeriesRow, error)); ok {
-		return returnFunc(ctx, seriesIds)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []GetAuthorsForMultipleSeriesRow); ok {
-		r0 = returnFunc(ctx, seriesIds)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]GetAuthorsForMultipleSeriesRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
-		r1 = returnFunc(ctx, seriesIds)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockQuerier_GetAuthorsForMultipleSeries_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAuthorsForMultipleSeries'
-type MockQuerier_GetAuthorsForMultipleSeries_Call struct {
-	*mock.Call
-}
-
-// GetAuthorsForMultipleSeries is a helper method to define mock.On call
-//   - ctx context.Context
-//   - seriesIds []int64
-func (_e *MockQuerier_Expecter) GetAuthorsForMultipleSeries(ctx interface{}, seriesIds interface{}) *MockQuerier_GetAuthorsForMultipleSeries_Call {
-	return &MockQuerier_GetAuthorsForMultipleSeries_Call{Call: _e.mock.On("GetAuthorsForMultipleSeries", ctx, seriesIds)}
-}
-
-func (_c *MockQuerier_GetAuthorsForMultipleSeries_Call) Run(run func(ctx context.Context, seriesIds []int64)) *MockQuerier_GetAuthorsForMultipleSeries_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 []int64
-		if args[1] != nil {
-			arg1 = args[1].([]int64)
-		}
-		run(arg0, arg1)
-	})
-	return _c
-}
-
-func (_c *MockQuerier_GetAuthorsForMultipleSeries_Call) Return(_result0 []GetAuthorsForMultipleSeriesRow, _result1 error) *MockQuerier_GetAuthorsForMultipleSeries_Call {
-	_c.Call.Return(_result0, _result1)
-	return _c
-}
-
-func (_c *MockQuerier_GetAuthorsForMultipleSeries_Call) RunAndReturn(run func(ctx context.Context, seriesIds []int64) ([]GetAuthorsForMultipleSeriesRow, error)) *MockQuerier_GetAuthorsForMultipleSeries_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1454,13 +1457,16 @@ func (_c *MockQuerier_ListSeriesWithBookStats_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(ListSeriesWithBookStatsParams)
 		}
-		run(arg0, arg1)
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
 
-func (_c *MockQuerier_ListSeriesWithBookStats_Call) Return(_result0 []ListSeriesWithBookStatsRow, _result1 error) *MockQuerier_ListSeriesWithBookStats_Call {
-	_c.Call.Return(_result0, _result1)
+func (_c *MockQuerier_ListSeriesWithBookStats_Call) Return(listSeriesWithBookStatsRows []ListSeriesWithBookStatsRow, err error) *MockQuerier_ListSeriesWithBookStats_Call {
+	_c.Call.Return(listSeriesWithBookStatsRows, err)
 	return _c
 }
 
