@@ -15,7 +15,7 @@ build-frontend:
 
 # Build the Go server (with embedded frontend)
 build-server: build-frontend
-	go build -o bin/bookscraping-server ./cmd/server
+	go build -ldflags="-X main.Version=$(git describe --tags --dirty --always)" -o bin/bookscraping-server ./cmd/server
 
 # Run both frontend and backend in development (requires foreman/overmind/goreman)
 dev:
@@ -41,6 +41,7 @@ clean:
 	rm -rf frontend/.svelte-kit
 	rm -rf pkg/server/dist
 	mkdir -p pkg/server/dist
+	rm -f data/install_id
 
 # Install frontend dependencies
 install-frontend:

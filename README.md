@@ -157,10 +157,44 @@ LOG_LEVEL=info                     # Log level (debug, info, warn, error)
 DB_PATH=./bookscraping.db          # SQLite database file path
 ```
 
-## License
-
-GNU AGPLv3 - See LICENSE for details
 
 ## Disclaimer
 
 This application is not affiliated with Goodreads, Amazon, or Booklore. It scrapes publicly available data from Goodreads. Please use responsibly and respect their terms of service.
+
+## 📊 Telemetry
+
+This project includes very minimal, privacy-respecting telemetry to help understand how many unique installations exist.
+
+What is collected (once per install):
+
+* Randomly generated install ID (UUID)
+* Application version
+* Operating system & architecture
+* Timestamp of first start
+
+What is NOT collected:
+
+* IP addresses
+* Hostnames
+* Usernames
+* Any application data
+
+Telemetry is sent once, on the first container start only.
+
+## Opt-out
+
+You can disable telemetry entirely by setting:
+
+```bash
+TELEMETRY_ENABLED=false
+```
+
+Or in Docker Compose:
+
+```yaml
+environment:
+  - TELEMETRY_ENABLED=false
+```
+
+Telemetry is used only for aggregate usage counts and project planning.

@@ -42,8 +42,10 @@ COPY sqlc.yaml ./
 # Copy built frontend from frontend-builder
 COPY --from=frontend-builder /app/frontend/build ./pkg/server/dist
 
+ARG VERSION=dev
+
 # Build the server
-RUN go build -o bin/bookscraping-server ./cmd/server
+RUN go build -ldflags="-X main.Version=${VERSION}" -o bin/bookscraping-server ./cmd/server
 
 
 # Final runtime stage
