@@ -51,6 +51,7 @@ clean:
 	rm -rf frontend/.svelte-kit
 	rm -rf pkg/server/dist
 	mkdir -p pkg/server/dist
+	touch pkg/server/dist/.gitkeep
 	rm -f data/install_id
 	rm -rf telemetry-worker/node_modules
 

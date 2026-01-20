@@ -39,7 +39,7 @@ func Send(version string) {
 
 	endpoint := os.Getenv("TELEMETRY_ENDPOINT")
 	if endpoint == "" {
-		slog.Info("Telemetry endpoint not set, using default")
+		slog.Debug("Telemetry endpoint not set, using default")
 		endpoint = "https://telemetry-worker.amalgamated-tools.workers.dev"
 	}
 
@@ -49,19 +49,19 @@ func Send(version string) {
 	// Determine install ID path: prefer mounted /data folder, fall back to ./data
 	if _, err := os.Stat("/data"); err == nil {
 		installIDPath = "/data/install_id"
-		slog.Info("Using mounted /data folder for install ID", slog.String("path", installIDPath))
+		slog.Debug("Using mounted /data folder for install ID", slog.String("path", installIDPath))
 	} else {
 		installIDPath = "./data/install_id"
-		slog.Info("Using local data folder for install ID", slog.String("path", installIDPath))
+		slog.Debug("Using local data folder for install ID", slog.String("path", installIDPath))
 	}
 
 	// Only send once per install
 	if _, err := os.Stat(installIDPath); err == nil {
-		slog.Info("Telemetry already sent for this install, skipping")
+		slog.Debug("Telemetry already sent for this install, skipping")
 		return
 	}
 
-	slog.Info("Install ID not found, sending telemetry data")
+	slog.Debug("Install ID not found, sending telemetry data")
 	// Create install ID
 	id := uuid.New().String()
 
@@ -99,13 +99,13 @@ func Send(version string) {
 	}
 
 	// write out response to log
-	slog.Info("Telemetry sent successfully")
+	slog.Debug("Telemetry sent successfully")
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		slog.Error("Failed to read telemetry response", "error", err)
 		return
 	}
-	slog.Info("Telemetry response", "body", string(body))
+	slog.Debug("Telemetry response", "body", string(body))
 
 	err = os.WriteFile(installIDPath, []byte(id), 0644)
 	if err != nil {
