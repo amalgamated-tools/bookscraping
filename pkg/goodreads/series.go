@@ -16,7 +16,11 @@ func (c *Client) GetSeriesBooks(seriesID string) ([]BookWithPosition, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetching series page: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", slog.Any("error", err))
+		}
+	}()
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
@@ -55,7 +59,11 @@ func (c *Client) GetSeries(seriesID string) (*Series, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetching series page: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", slog.Any("error", err))
+		}
+	}()
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {

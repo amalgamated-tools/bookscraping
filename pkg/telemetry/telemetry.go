@@ -77,7 +77,7 @@ func Send(version string) {
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
 	if err != nil {
-		slog.Error("Failed to create telemetry request", "error", err)
+		slog.Error("Failed to create telemetry request", slog.Any("error", err))
 		return
 	}
 
@@ -88,13 +88,17 @@ func Send(version string) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("Failed to send telemetry request", "error", err)
+		slog.Error("Failed to send telemetry request", slog.Any("error", err))
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close telemetry response body", slog.Any("error", err))
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("Telemetry request failed", "status", resp.StatusCode)
+		slog.Error("Telemetry request failed", slog.Int("status", resp.StatusCode))
 		return
 	}
 
@@ -102,14 +106,14 @@ func Send(version string) {
 	slog.Debug("Telemetry sent successfully")
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("Failed to read telemetry response", "error", err)
+		slog.Error("Failed to read telemetry response", slog.Any("error", err))
 		return
 	}
-	slog.Debug("Telemetry response", "body", string(body))
+	slog.Debug("Telemetry response", slog.String("body", string(body)))
 
 	err = os.WriteFile(installIDPath, []byte(id), 0644)
 	if err != nil {
-		slog.Error("Failed to write install ID", "error", err)
+		slog.Error("Failed to write install ID", slog.Any("error", err))
 		return
 	}
 }

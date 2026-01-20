@@ -154,19 +154,6 @@ export const api = {
     });
   },
 
-  // Goodreads integration
-  async searchGoodreads(query: string): Promise<Book[]> {
-    return fetchApi<Book[]>(`/goodreads/search?q=${encodeURIComponent(query)}`);
-  },
-
-  async getGoodreadsBook(id: string): Promise<Book> {
-    return fetchApi<Book>(`/goodreads/book/${id}`);
-  },
-
-  async getGoodreadsSeries(id: string): Promise<Series> {
-    return fetchApi<Series>(`/goodreads/series/${id}`);
-  },
-
   // Test Booklore connection via backend
   async testConnection(
     serverUrl: string,

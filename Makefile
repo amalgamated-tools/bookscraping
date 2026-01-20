@@ -1,4 +1,4 @@
-.PHONY: all build build-frontend build-server build-telemetry dev clean install-frontend install-telemetry fmt migrate sqlc test test-go test-frontend test-format dev-telemetry deploy-telemetry
+.PHONY: all build build-frontend build-server build-telemetry dev clean install-frontend install-telemetry fmt migrate sqlc test test-go test-frontend test-format dev-telemetry deploy-telemetry lint install-golangci-lint
 
 # Default target
 all: build
@@ -104,3 +104,20 @@ test-format:
 		exit 1; \
 	}
 	@echo "✓ Frontend formatting OK!"
+
+# golangci-lint targets
+.PHONY: install-golangci-lint
+install-golangci-lint:
+	@echo "Installing golangci-lint v1.63.4..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4
+	@golangci-lint --version
+
+.PHONY: lint
+lint: install-golangci-lint
+	@echo "Running golangci-lint..."
+	golangci-lint run
+
+.PHONY: lint-fix
+lint-fix: install-golangci-lint
+	@echo "Running golangci-lint with fixes..."
+	golangci-lint run --fix

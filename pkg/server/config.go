@@ -60,7 +60,7 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		Value: req.ServerURL,
 	})
 	if err != nil {
-		slog.Error("Failed to save serverUrl", "error", err)
+		slog.Error("Failed to save serverUrl", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to save configuration")
 		return
 	}
@@ -70,7 +70,7 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		Value: req.Username,
 	})
 	if err != nil {
-		slog.Error("Failed to save username", "error", err)
+		slog.Error("Failed to save username", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to save configuration")
 		return
 	}
@@ -80,7 +80,7 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		Value: req.Password,
 	})
 	if err != nil {
-		slog.Error("Failed to save password", "error", err)
+		slog.Error("Failed to save password", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to save configuration")
 		return
 	}
@@ -92,25 +92,30 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := slog.With(slog.String("handler", "handleTestConnection"))
+
+	logger.Debug("Testing Booklore connection")
+
 	var req ConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.ErrorContext(ctx, "Failed to decode request body", slog.Any("error", err))
 		writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	if req.ServerURL == "" || req.Username == "" || req.Password == "" {
+		logger.ErrorContext(ctx, "Missing credentials in request")
 		writeError(w, http.StatusBadRequest, "Missing credentials")
 		return
 	}
-
-	ctx := r.Context()
 
 	// Create a temporary client with the provided credentials
 	client := booklore.NewClient(req.ServerURL, req.Username, req.Password)
 
 	// Try to login
-	if err := client.Login(); err != nil {
-		slog.Error("Test connection failed", "error", err)
+	if err := client.Login(ctx); err != nil {
+		logger.ErrorContext(ctx, "Test connection failed", slog.Any("error", err))
 		writeError(w, http.StatusUnauthorized, "Connection failed: "+err.Error())
 		return
 	}
@@ -118,7 +123,7 @@ func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 	// Get the token from the client
 	token := client.GetToken()
 	if token.AccessToken == "" {
-		slog.Error("No access token returned from login")
+		logger.ErrorContext(ctx, "No access token returned from login")
 		writeError(w, http.StatusInternalServerError, "No token returned from Booklore")
 		return
 	}
@@ -129,7 +134,7 @@ func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 		Value: token.AccessToken,
 	})
 	if err != nil {
-		slog.Error("Failed to store access token", "error", err)
+		logger.ErrorContext(ctx, "Failed to store access token", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to store token")
 		return
 	}
@@ -141,7 +146,7 @@ func (s *Server) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 			Value: token.RefreshToken,
 		})
 		if err != nil {
-			slog.Warn("Failed to store refresh token", "error", err)
+			logger.WarnContext(ctx, "Failed to store refresh token", slog.Any("error", err))
 			// Don't fail the whole operation if refresh token storage fails
 		}
 	}

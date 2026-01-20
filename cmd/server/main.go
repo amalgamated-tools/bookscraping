@@ -49,6 +49,7 @@ func setupLogger() {
 			level = slog.LevelInfo
 		}
 	}
+
 	var logger *slog.Logger
 	if format == "json" {
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
@@ -106,11 +107,12 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 
 	// Start server
 	srv := server.NewServer(
+		cancelCtx,
 		server.WithQuerier(queries),
 		server.WithAddr(addr),
 	)
 
-	slog.Info("Starting BookScraping server",
+	slog.InfoContext(cancelCtx, "Starting BookScraping server",
 		slog.String("address", addr),
 	)
 

@@ -45,7 +45,9 @@ func SetupDatabase() (Querier, error) {
 	// Run migrations
 	if err := runMigrations(sqlDB); err != nil {
 		slog.Error("Failed to run migrations", slog.Any("error", err))
-		sqlDB.Close()
+		if closeErr := sqlDB.Close(); closeErr != nil {
+			slog.Error("Failed to close database", slog.Any("error", closeErr))
+		}
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 	slog.Debug("Database created and migrated successfully", slog.String("path", dbFilePath))
@@ -55,7 +57,9 @@ func SetupDatabase() (Querier, error) {
 	count, err := queries.CountBooks(context.Background())
 	if err != nil {
 		slog.Error("Failed to count books in database", slog.Any("error", err))
-		sqlDB.Close()
+		if closeErr := sqlDB.Close(); closeErr != nil {
+			slog.Error("Failed to close database", slog.Any("error", closeErr))
+		}
 		return nil, fmt.Errorf("failed to count books in database: %w", err)
 	}
 	slog.Debug("Database connected", slog.Int64("book_count", count))

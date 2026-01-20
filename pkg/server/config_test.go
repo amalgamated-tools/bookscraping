@@ -120,23 +120,31 @@ func TestServer_handleGetConfig(t *testing.T) {
 			originalEnv := make(map[string]string)
 			for key := range tt.envVars {
 				originalEnv[key] = os.Getenv(key)
-				os.Unsetenv(key)
+				if err := os.Unsetenv(key); err != nil {
+					t.Fatalf("Failed to unset environment variable %s: %v", key, err)
+				}
 			}
 			defer func() {
 				// Restore original environment
 				for key := range tt.envVars {
-					os.Unsetenv(key)
+					if err := os.Unsetenv(key); err != nil {
+						t.Errorf("Failed to unset environment variable %s: %v", key, err)
+					}
 				}
 				for key, val := range originalEnv {
 					if val != "" {
-						os.Setenv(key, val)
+						if err := os.Setenv(key, val); err != nil {
+							t.Errorf("Failed to set environment variable %s: %v", key, err)
+						}
 					}
 				}
 			}()
 
 			// Set test environment variables
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				if err := os.Setenv(key, value); err != nil {
+					t.Fatalf("Failed to set environment variable %s: %v", key, err)
+				}
 			}
 			mockQuerier := db.NewMockQuerier(t)
 			mockQuerier.On("GetConfig", mock.Anything, mock.Anything).Return(tt.getConfigFn)

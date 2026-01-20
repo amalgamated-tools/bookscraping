@@ -21,7 +21,9 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		Password  string `json:"password"`
 	}
 	if r.Body != nil {
-		json.NewDecoder(r.Body).Decode(&creds)
+		if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+			slog.Error("Failed to decode credentials from request body", slog.Any("error", err))
+		}
 	}
 
 	// Use provided creds or fall back to stored config or env
@@ -58,48 +60,57 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		} else {
 			slog.Info("Stored token invalid, attempting fresh login")
 			// Token is invalid, fall through to login
-			if err := client.Login(); err != nil {
-				slog.Error("Failed to login to Booklore", "error", err)
+			if err := client.Login(ctx); err != nil {
+				slog.Error("Failed to login to Booklore", slog.Any("error", err))
 				writeError(w, http.StatusUnauthorized, "Failed to login to Booklore")
 				return
 			}
 			// Store the new token
 			newToken := client.GetToken()
-			s.queries.SetConfig(ctx, db.SetConfigParams{
+			err = s.queries.SetConfig(ctx, db.SetConfigParams{
 				Key:   "booklore_access_token",
 				Value: newToken.AccessToken,
 			})
+			if err != nil {
+				slog.Error("Failed to store new access token", slog.Any("error", err))
+			}
 		}
 	} else {
 		// No token stored, perform login
-		if err := client.Login(); err != nil {
-			slog.Error("Failed to login to Booklore", "error", err)
+		if err := client.Login(ctx); err != nil {
+			slog.Error("Failed to login to Booklore", slog.Any("error", err))
 			writeError(w, http.StatusUnauthorized, "Failed to login to Booklore")
 			return
 		}
 		// Store the token
 		token := client.GetToken()
-		s.queries.SetConfig(ctx, db.SetConfigParams{
+		err := s.queries.SetConfig(ctx, db.SetConfigParams{
 			Key:   "booklore_access_token",
 			Value: token.AccessToken,
 		})
+		if err != nil {
+			slog.Error("Failed to store new access token", slog.Any("error", err))
+		}
 		if token.RefreshToken != "" {
-			s.queries.SetConfig(ctx, db.SetConfigParams{
+			err := s.queries.SetConfig(ctx, db.SetConfigParams{
 				Key:   "booklore_refresh_token",
 				Value: token.RefreshToken,
 			})
+			if err != nil {
+				slog.Error("Failed to store new refresh token", slog.Any("error", err))
+			}
 		}
 	}
 
 	// Fetch books
 	books, err := client.LoadAllBooks()
 	if err != nil {
-		slog.Error("Failed to fetch books from Booklore", "error", err)
+		slog.Error("Failed to fetch books from Booklore", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, "Failed to fetch books")
 		return
 	}
 
-	slog.Info("Fetched books from Booklore", "count", len(books))
+	slog.Info("Fetched books from Booklore", slog.Int("count", len(books)))
 
 	// Sync books to DB
 	syncedCount := 0
@@ -117,7 +128,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 
 		var seriesNamePtr *string
 		if book.SeriesName != "" {
-			slog.Info("Syncing book in series", "book_title", book.Title, "series_name", book.SeriesName)
+			slog.Info("Syncing book in series", slog.String("book_title", book.Title), slog.String("series_name", book.SeriesName))
 			seriesNamePtr = &book.SeriesName
 		}
 
@@ -132,7 +143,11 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Store raw JSON data
-		jsonData, _ := json.Marshal(book)
+		jsonData, err := json.Marshal(book)
+		if err != nil {
+			slog.Error("Failed to marshal book JSON", slog.Int64("book_id", book.ID), slog.String("title", book.Title), slog.Any("error", err))
+			continue
+		}
 
 		insertedBook, err := s.queries.UpsertBook(ctx, db.UpsertBookParams{
 			BookID:          book.ID,
@@ -152,7 +167,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if err != nil {
-			slog.Error("Failed to sync book", "book_id", book.ID, "title", book.Title, "error", err)
+			slog.Error("Failed to sync book", slog.Int64("book_id", book.ID), slog.String("title", book.Title), slog.Any("error", err))
 			continue
 		}
 
@@ -163,7 +178,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		for _, authorName := range book.Authors {
 			author, err := s.queries.UpsertAuthor(ctx, authorName)
 			if err != nil {
-				slog.Error("Failed to upsert author", "name", authorName, "error", err)
+				slog.Error("Failed to upsert author", slog.String("name", authorName), slog.Any("error", err))
 				continue
 			}
 
@@ -172,7 +187,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				AuthorID: author.ID,
 			})
 			if err != nil {
-				slog.Error("Failed to link book author", "book_title", book.Title, "author", authorName, "error", err)
+				slog.Error("Failed to link book author", slog.String("book_title", book.Title), slog.String("author", authorName), slog.Any("error", err))
 			}
 		}
 
@@ -190,7 +205,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			Data:        nil,
 		})
 		if err != nil {
-			slog.Warn("Failed to upsert series during sync", "series_name", seriesName, "error", err)
+			slog.Warn("Failed to upsert series during sync", slog.String("series_name", seriesName), slog.Any("error", err))
 			continue
 		}
 		seriesNameToID[seriesName] = series.ID
@@ -210,7 +225,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		// Get book database ID from the mapping created in first pass
 		dbBookID, exists := bookIDToDBID[book.ID]
 		if !exists {
-			slog.Error("Failed to find book ID mapping", "book_id", book.ID)
+			slog.Error("Failed to find book ID mapping", slog.Int64("book_id", book.ID))
 			continue
 		}
 
@@ -219,7 +234,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			ID:       dbBookID,
 		})
 		if err != nil {
-			slog.Error("Failed to link book to series", "book_id", book.ID, "series_id", seriesID, "error", err)
+			slog.Error("Failed to link book to series", slog.Int64("book_id", book.ID), slog.Int64("series_id", seriesID), slog.Any("error", err))
 			continue
 		}
 
@@ -230,7 +245,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				// Author should already exist from the previous pass, but just in case
 				author, err = s.queries.UpsertAuthor(ctx, authorName)
 				if err != nil {
-					slog.Error("Failed to upsert author", "author_name", authorName, "error", err)
+					slog.Error("Failed to upsert author", slog.String("author_name", authorName), slog.Any("error", err))
 					continue
 				}
 			}
@@ -240,12 +255,12 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 				AuthorID: author.ID,
 			})
 			if err != nil {
-				slog.Error("Failed to link series author", "series_id", seriesID, "author", authorName, "error", err)
+				slog.Error("Failed to link series author", slog.Int64("series_id", seriesID), slog.String("author", authorName), slog.Any("error", err))
 			}
 		}
 	}
 
-	slog.Info("Sync complete", "total_books", len(books), "synced_books", syncedCount, "synced_series", len(uniqueSeries))
+	slog.Info("Sync complete", slog.Int("total_books", len(books)), slog.Int("synced_books", syncedCount), slog.Int("synced_series", len(uniqueSeries)))
 	writeJSON(w, map[string]any{
 		"status":        "success",
 		"total":         len(books),

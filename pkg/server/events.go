@@ -40,7 +40,10 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Send initial connection message with client ID
-	fmt.Fprintf(w, "data: {\"type\":\"connected\",\"clientId\":\"%s\"}\n\n", clientID)
+	if _, err := fmt.Fprintf(w, "data: {\"type\":\"connected\",\"clientId\":\"%s\"}\n\n", clientID); err != nil {
+		slog.Error("Failed to write connection message", slog.Any("error", err))
+		return
+	}
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
@@ -68,13 +71,19 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			slog.Info("SSE client disconnected", slog.String("clientId", clientID))
 			return
 		case event := <-clientEvents:
-			fmt.Fprintf(w, "data: %s\n\n", event)
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", event); err != nil {
+				slog.Error("Failed to write SSE event", slog.Any("error", err))
+				return
+			}
 			if flusher, ok := w.(http.Flusher); ok {
 				flusher.Flush()
 			}
 			slog.Info("Sent SSE event to client", slog.String("clientId", clientID), slog.String("event", event))
 		case <-ticker.C:
-			fmt.Fprintf(w, ": heartbeat\n\n")
+			if _, err := fmt.Fprintf(w, ": heartbeat\n\n"); err != nil {
+				slog.Error("Failed to write heartbeat", slog.Any("error", err))
+				return
+			}
 			if flusher, ok := w.(http.Flusher); ok {
 				flusher.Flush()
 			}
