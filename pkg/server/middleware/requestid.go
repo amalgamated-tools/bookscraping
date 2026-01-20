@@ -7,11 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type contextKey string
 
 const RequestID = "X-Request-ID"
 
 // RequestIDKey is the context key for the X-Request-ID value
-const ctxRequestIDKey = "go-http-RequestId"
+const ctxRequestIDKey contextKey = "go-http-RequestId"
 
 // RequestIDHandler is a middleware that generates or extracts request IDs and adds them to the request context.
 func RequestIDHandler(next http.Handler) http.Handler {
