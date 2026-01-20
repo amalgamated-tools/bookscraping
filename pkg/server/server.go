@@ -86,7 +86,7 @@ func NewServer(ctx context.Context, opts ...ServerOption) *Server {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	newctx, span := otel.StartTracer(ctx, "main")
+	newctx, span := otel.StartTracer(ctx, "server.Run")
 	defer span.End()
 	slog.Debug("Running server", slog.String("address", s.Address))
 	ctx, cancel := context.WithCancel(newctx)

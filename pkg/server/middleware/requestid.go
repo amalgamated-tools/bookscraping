@@ -7,13 +7,13 @@ import (
 	"github.com/google/uuid"
 )
 
-const RequestIDLabel = "request_id"
+
 const RequestID = "X-Request-ID"
 
 // RequestIDKey is the context key for the X-Request-ID value
 const ctxRequestIDKey = "go-http-RequestId"
 
-// RequestIDHandler is a middleware that handles the  request id stuff
+// RequestIDHandler is a middleware that generates or extracts request IDs and adds them to the request context.
 func RequestIDHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get(RequestID)
@@ -28,6 +28,8 @@ func RequestIDHandler(next http.Handler) http.Handler {
 
 		r = r.WithContext(WithRequestID(r.Context(), id))
 
+		// ensure the request ID is also available to clients in the response headers
+		w.Header().Set(RequestID, id)
 		next.ServeHTTP(w, r)
 	}
 
@@ -52,7 +54,7 @@ func WithRequestID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, ctxRequestIDKey, id)
 }
 
-// Forward is a request hook that looks for X-Request-Id in the incoming context and adds them to r's headers.
+// Forward is a request hook that looks for X-Request-Id in the incoming context and adds it to r's headers.
 func Forward(r *http.Request) {
 	ctx := r.Context()
 

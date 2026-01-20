@@ -8,10 +8,12 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
+const instrumentationName = "github.com/amalgamated-tools/bookscraping/pkg/otel"
+
 // StartTracer is a wrapper around oteltrace.Tracer.Start that uses the global tracer.
 func StartTracer(ctx context.Context, spanName string, opts ...oteltrace.SpanStartOption) (context.Context, oteltrace.Span) {
-	globalTracer := otel.GetTracerProvider().Tracer("")
-	return globalTracer.Start(ctx, spanName, opts...) //nolint:spancheck // spanName != span
+	globalTracer := otel.GetTracerProvider().Tracer(instrumentationName)
+	return globalTracer.Start(ctx, spanName, opts...) //nolint:spancheck // span lifecycle is managed by the caller (e.g., defer span.End() in HTTP middleware)
 }
 
 // TraceMiddleware is a middleware that adds tracing to HTTP requests.
