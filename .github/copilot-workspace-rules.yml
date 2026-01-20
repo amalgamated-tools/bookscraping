@@ -1,0 +1,181 @@
+# GitHub Copilot Workspace Rules for BookScraping
+# This file configures workspace-level rules and patterns for GitHub Copilot
+
+# Project Information
+project:
+  name: BookScraping
+  description: Full-stack book library management with Booklore and Goodreads integration
+  language: Go, TypeScript
+  framework: SvelteKit
+  database: SQLite
+
+# Code Style Rules
+style:
+  go:
+    - Always use standard library first in imports, then third-party packages
+    - Use camelCase for unexported, PascalCase for exported identifiers
+    - Never panic in library code, always return errors
+    - Use log/slog for structured logging
+    - Comment all exported functions starting with the function name
+    - Use struct tags for JSON serialization (json:"field_name")
+    
+  typescript:
+    - Enable strict mode for all TypeScript files
+    - Always use explicit types, avoid 'any'
+    - Use camelCase for variables/functions, PascalCase for classes/components
+    - Use ESM import syntax
+    - Group imports: standard library, third-party, then local
+    
+  svelte:
+    - Use +page.svelte for route pages
+    - Use +layout.svelte for layouts
+    - Use +page.ts for data loading
+    - Place stores in /frontend/src/lib/stores/ with .ts extension
+    - Use Svelte 5 runes syntax ($state, $derived, $effect)
+
+# Naming Conventions
+naming:
+  go:
+    functions: camelCase (unexported), PascalCase (exported)
+    variables: camelCase
+    constants: ALLCAPS or PascalCase
+    packages: lowercase, single word
+    files: snake_case.go
+    
+  typescript:
+    functions: camelCase
+    variables: camelCase
+    classes: PascalCase
+    components: PascalCase
+    interfaces: PascalCase
+    files: kebab-case.ts, +page.svelte
+
+# Architecture Patterns
+patterns:
+  backend:
+    - Use *http.ServeMux for routing
+    - Return errors from HTTP handlers
+    - Use sqlc for type-safe database queries
+    - Implement Server-Sent Events for real-time updates
+    - Use context.Context for cancellation and timeouts
+    
+  frontend:
+    - Centralize API calls in /frontend/src/lib/api.ts
+    - Use Svelte stores for global state
+    - Implement proper error handling for API calls
+    - Use TypeScript types for all API responses
+    
+  database:
+    - Write migrations in db/migrations/ with timestamps
+    - Write queries in db/query/query.sql
+    - Run 'make sqlc' after query changes
+    - Use prepared statements via sqlc (prevents SQL injection)
+
+# File Organization
+structure:
+  backend:
+    - cmd/: Entry points (server, cli)
+    - pkg/: Reusable packages (server, db, booklore, goodreads)
+    - db/migrations/: SQL schema migrations
+    - db/query/: SQL queries for sqlc
+    
+  frontend:
+    - src/routes/: SvelteKit pages and layouts
+    - src/lib/api.ts: API client
+    - src/lib/stores/: Svelte stores
+    - src/lib/: Shared utilities and components
+
+# Testing Guidelines
+testing:
+  go:
+    - Use testing package and testify assertions
+    - Place tests in _test.go files
+    - Use table-driven tests for multiple cases
+    - Mock database interface using mockery
+    - Run: go test ./... or make test-go
+    
+  frontend:
+    - Use pnpm run check for type checking
+    - Use pnpm run build to validate build
+    - Ensure strict TypeScript compliance
+
+# Build Commands
+commands:
+  development:
+    - make dev: Run both frontend and backend
+    - air: Hot-reload Go server
+    - cd frontend && pnpm run dev: Frontend dev server
+    
+  build:
+    - make build: Build everything
+    - make build-server: Build Go server with embedded frontend
+    - make build-frontend: Build frontend only
+    
+  test:
+    - make test: Run all tests
+    - make test-go: Go tests only
+    - make test-frontend: TypeScript check and build
+    
+  database:
+    - go run ./cmd/cli migrate: Run migrations
+    - make sqlc: Generate type-safe query code
+    
+  format:
+    - make fmt: Format all code (Go and frontend)
+
+# Common Pitfalls
+warnings:
+  - Frontend must be built before embedding in server binary
+  - Run 'make sqlc' after changing queries or schema
+  - Use --no-pager with git commands to avoid interactive output
+  - SSE connections have browser limits (6 per domain)
+  - Goodreads HTML structure can change, requiring scraper updates
+  - Always use context.Context for HTTP requests and database operations
+
+# Environment Variables
+environment:
+  PORT: HTTP server port (default: 8080)
+  LOG_LEVEL: Log level (debug, info, warn, error)
+  DB_PATH: SQLite database file path (default: ./bookscraping.db)
+
+# External Dependencies
+dependencies:
+  go:
+    - github.com/PuerkitoBio/goquery: HTML parsing for Goodreads
+    - modernc.org/sqlite: SQLite database driver
+    - github.com/google/uuid: UUID generation
+    
+  frontend:
+    - "@sveltejs/kit": SvelteKit framework
+    - svelte: Svelte 5
+    - typescript: TypeScript compiler
+    - vite: Build tool
+
+# Security Practices
+security:
+  - Never commit secrets or credentials
+  - Use prepared statements for all database queries
+  - Validate all user inputs
+  - Sanitize HTML from web scraping
+  - Rate limit external API requests
+  - Use HTTPS for external API calls
+  - Store sensitive config in database, not code
+
+# Documentation
+documentation:
+  - Comment all exported Go functions
+  - Use JSDoc comments for complex TypeScript functions
+  - Update README.md for major feature changes
+  - Document API endpoints in handler comments
+  - Keep AGENTS.md updated with build/test commands
+
+# Version Control
+git:
+  - Run 'make fmt' before committing
+  - Write clear commit messages
+  - Keep commits focused and atomic
+  - Use .gitignore for build artifacts
+  - Don't commit: bin/, frontend/build/, node_modules/, *.db
+
+# License
+license: GNU AGPLv3 (copyleft - modifications must be open source)

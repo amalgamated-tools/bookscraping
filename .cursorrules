@@ -1,0 +1,217 @@
+# Cursor Rules for BookScraping
+
+You are an expert in Go, TypeScript, SvelteKit, and SQLite development.
+
+## Project Context
+
+BookScraping is a full-stack book library management application:
+- **Backend**: Go 1.25+ with net/http, SQLite (sqlc), structured logging (slog)
+- **Frontend**: SvelteKit with Svelte 5, TypeScript (strict mode), Vite
+- **Database**: SQLite with type-safe queries via sqlc
+- **Build**: Make, pnpm, embedded frontend in Go binary
+
+Key features: Booklore sync, Goodreads integration, series management, real-time SSE updates.
+
+## Code Style
+
+### Go
+- **Imports**: Standard library first, blank line, then third-party packages
+- **Naming**: camelCase (unexported), PascalCase (exported), ALLCAPS (constants)
+- **Error Handling**: Always return errors, never panic in libraries, use fmt.Errorf with %w
+- **Comments**: All exported functions must have comments starting with function name
+- **Structs**: Use json and validation tags: `json:"title" validate:"required"`
+- **Logging**: Use log/slog for structured logging: `slog.Info("message", "key", value)`
+- **HTTP**: Use *http.ServeMux, return errors from handlers, proper status codes
+
+### TypeScript + Svelte
+- **Strict Mode**: Enabled, always use explicit types, never use `any`
+- **Imports**: Group by standard library, third-party, local
+- **Naming**: camelCase (functions/vars), PascalCase (components/classes)
+- **Stores**: Place in /frontend/src/lib/stores/ with .ts extension
+- **Routes**: Use +page.svelte, +layout.svelte, +page.ts (SvelteKit conventions)
+- **Svelte 5**: Use runes syntax ($state, $derived, $effect)
+
+### Database
+- **Queries**: Write in db/query/query.sql, then run `make sqlc` to generate Go code
+- **Migrations**: Create in db/migrations/ with timestamp prefix YYYYMMDDHHMMSS_description.sql
+- **Safety**: Use sqlc-generated prepared statements (prevents SQL injection)
+
+## Key Patterns
+
+### Backend HTTP Handler
+```go
+func (s *Server) handleBooks(w http.ResponseWriter, r *http.Request) error {
+    books, err := s.queries.ListBooks(r.Context())
+    if err != nil {
+        return fmt.Errorf("list books: %w", err)
+    }
+    w.Header().Set("Content-Type", "application/json")
+    return json.NewEncoder(w).Encode(books)
+}
+```
+
+### Frontend API Call
+```typescript
+export async function fetchBooks(): Promise<Book[]> {
+    const response = await fetch('/api/books');
+    if (!response.ok) {
+        throw new Error(`Failed to fetch books: ${response.statusText}`);
+    }
+    return response.json();
+}
+```
+
+### Database Query (sqlc)
+```sql
+-- name: ListBooks :many
+SELECT b.*, 
+       json_group_array(json_object('id', a.id, 'name', a.name)) as authors
+FROM books b
+LEFT JOIN book_authors ba ON b.id = ba.book_id
+LEFT JOIN authors a ON ba.author_id = a.id
+GROUP BY b.id;
+```
+
+## Architecture
+
+### Directory Structure
+```
+cmd/              # Entry points (server, cli)
+pkg/
+  server/         # HTTP handlers, SSE
+  db/             # sqlc generated code
+  booklore/       # Booklore API client
+  goodreads/      # Web scraper
+db/
+  migrations/     # SQL schema migrations
+  query/          # SQL queries for sqlc
+frontend/
+  src/
+    routes/       # SvelteKit pages (+page.svelte)
+    lib/
+      api.ts      # Centralized API client
+      stores/     # Svelte stores
+```
+
+### Data Flow
+1. **Booklore Sync**: Credentials → JWT auth → Fetch books → Upsert DB → SSE events
+2. **Goodreads Fetch**: Series ID → HTML scrape → Parse books → Mark missing → Update DB
+3. **Real-time Updates**: SSE connection → Backend events → Frontend store updates
+
+## Commands
+
+```bash
+# Development
+make dev              # Run both frontend and backend (requires overmind/foreman)
+air                   # Go hot-reload server
+cd frontend && pnpm run dev  # Frontend dev server (port 5173 proxies to 8080)
+
+# Build
+make build            # Build everything (frontend + server)
+make build-server     # Build Go server with embedded frontend
+make build-frontend   # Build frontend only
+
+# Test
+make test             # All tests
+make test-go          # Go tests: go test ./...
+make test-frontend    # TypeScript check + build
+
+# Database
+go run ./cmd/cli migrate  # Run migrations
+make sqlc             # Generate type-safe queries from SQL
+
+# Format
+make fmt              # Format all code (Go + Prettier)
+```
+
+## Best Practices
+
+### Error Handling
+- Always check errors immediately
+- Wrap errors with context: `fmt.Errorf("context: %w", err)`
+- Log errors with structured logging: `slog.Error("msg", "error", err)`
+
+### HTTP APIs
+- Use proper status codes (200, 201, 400, 404, 500)
+- Set Content-Type headers
+- Use context for cancellation
+- Validate inputs before processing
+
+### Database
+- Use transactions for multi-table operations
+- Always use context with queries
+- Let sqlc generate type-safe code (don't write raw SQL in Go)
+- Create indexes for foreign keys
+
+### Frontend
+- Centralize API calls in api.ts
+- Use TypeScript interfaces for all data
+- Handle loading and error states
+- Use Svelte stores for shared state
+
+### Security
+- Never commit secrets
+- Validate all inputs
+- Use prepared statements (via sqlc)
+- Sanitize HTML from scraping
+- Rate limit external requests
+
+## Common Tasks
+
+### Add API Endpoint
+1. Add handler in pkg/server/
+2. Register route in NewServer()
+3. Add API method in frontend/src/lib/api.ts
+4. Add TypeScript types
+
+### Add Database Table
+1. Create migration in db/migrations/
+2. Add queries in db/query/query.sql
+3. Run `make sqlc` to generate Go code
+4. Use generated methods from pkg/db/
+
+### Add Frontend Page
+1. Create routes/path/+page.svelte
+2. Add data loading in +page.ts if needed
+3. Add API methods in lib/api.ts
+4. Use typed interfaces
+
+## Important Notes
+
+- **Module**: `github.com/amalgamated-tools/bookscraping`
+- **Go Version**: 1.25+
+- **License**: GNU AGPLv3 (copyleft)
+- **SSE**: Real-time updates via Server-Sent Events at /api/events
+- **Embedded Frontend**: Frontend built into server binary at pkg/server/dist/
+- **Goodreads**: Web scraping (official API deprecated), respect rate limits
+
+## External APIs
+
+- **Booklore**: JWT auth, REST API, JSON responses
+- **Goodreads**: HTML scraping with goquery, 1-2 second delays between requests
+
+## Environment Variables
+
+```bash
+PORT=8080                    # Server port
+LOG_LEVEL=info              # Log level (debug, info, warn, error)
+DB_PATH=./bookscraping.db   # SQLite database path
+```
+
+## Avoid
+
+- Using `any` type in TypeScript
+- Panicking in library code
+- Raw SQL in Go code (use sqlc)
+- Committing build artifacts (bin/, frontend/build/, node_modules/)
+- Hardcoded credentials
+- Missing error handling
+- Blocking operations without context
+
+## When in Doubt
+
+1. Check AGENTS.md for build/test commands
+2. Check README.md for architecture overview
+3. Look at existing code patterns in the same package
+4. Run `make fmt` before committing
+5. Run `make test` to verify changes
