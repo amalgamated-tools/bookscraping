@@ -8,6 +8,10 @@
     let page = $state(1);
     let total = $state(0);
     let perPage = 20;
+    let syncing = $state(false);
+    let syncProgress = $state<{ status: string; progress?: number } | null>(null);
+    let syncMessage = $state<string | null>(null);
+    let eventSource: EventSource | null = null;
 
     async function loadSeries() {
         loading = true;
@@ -22,7 +26,94 @@
         }
     }
 
-    onMount(loadSeries);
+    async function syncSeries() {
+        syncing = true;
+        syncProgress = null;
+        syncMessage = null;
+        error = null;
+        try {
+            await api.syncBooks();
+        } catch (e) {
+            error = e instanceof Error ? e.message : "Failed to sync series";
+            syncing = false;
+        }
+    }
+
+    function connectToSSE() {
+        try {
+            eventSource = new EventSource("/api/events");
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleSyncEvent(data);
+                } catch (e) {
+                    console.error("Failed to parse SSE event:", e);
+                }
+            };
+
+            eventSource.onerror = (error) => {
+                console.error("SSE connection error:", error);
+                disconnectFromSSE();
+            };
+        } catch (e) {
+            console.error("Failed to connect to SSE:", e);
+        }
+    }
+
+    function disconnectFromSSE() {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+    }
+
+    function handleSyncEvent(event: any) {
+        console.log("Received sync event:", event);
+
+        if (event.type === "sync_started") {
+            syncProgress = { status: "Starting sync..." };
+        } else if (event.type === "sync_progress") {
+            const progress = event.progress || 0;
+            syncProgress = {
+                status: event.message,
+                progress: progress,
+            };
+        } else if (event.type === "sync_complete") {
+            syncProgress = {
+                status: "Sync completed!",
+                progress: 100,
+            };
+            // Reload series after a brief delay
+            setTimeout(async () => {
+                try {
+                    await loadSeries();
+                    syncMessage = `Synced successfully! (${event.synced_books || 0} books)`;
+                    syncProgress = null;
+                    syncing = false;
+                    setTimeout(() => {
+                        syncMessage = null;
+                    }, 5000);
+                } catch (e) {
+                    console.error("Failed to reload series after sync:", e);
+                    syncing = false;
+                }
+            }, 500);
+        } else if (event.type === "sync_error") {
+            error = event.message;
+            syncProgress = null;
+            syncing = false;
+        }
+    }
+
+    onMount(() => {
+        loadSeries();
+        connectToSSE();
+
+        return () => {
+            disconnectFromSSE();
+        };
+    });
 
     function nextPage() {
         if (page * perPage < total) {
@@ -46,16 +137,34 @@
 <div class="series-page">
     <div class="header">
         <h1>📚 Series</h1>
-        <button onclick={loadSeries} disabled={loading} class="refresh-btn">
-            {loading ? "Refreshing..." : "🔄 Refresh"}
+        <button onclick={syncSeries} disabled={loading || syncing} class="refresh-btn">
+            {syncing ? "Syncing..." : "🔄 Sync"}
         </button>
     </div>
 
-    {#if loading}
-        <div class="loading">Loading series...</div>
-    {:else if error}
+    {#if error && !syncProgress}
         <div class="error">{error}</div>
-    {:else}
+    {/if}
+
+    {#if syncMessage}
+        <div class="success">{syncMessage}</div>
+    {/if}
+
+    {#if syncProgress}
+        <div class="sync-progress">
+            <div class="progress-message">{syncProgress.status}</div>
+            {#if syncProgress.progress !== undefined}
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {syncProgress.progress}%"></div>
+                </div>
+                <div class="progress-text">{Math.round(syncProgress.progress)}%</div>
+            {/if}
+        </div>
+    {/if}
+
+    {#if loading && !syncing}
+        <div class="loading">Loading series...</div>
+    {:else if !error && !syncProgress}
         <p class="count">Showing {series.length} of {total} series</p>
 
         <div class="series-grid">
@@ -141,6 +250,57 @@
         border-radius: 8px;
         padding: 1rem;
         color: #c00;
+        margin-bottom: 1rem;
+    }
+
+    .success {
+        background-color: #efe;
+        border: 1px solid #cfc;
+        border-radius: 8px;
+        padding: 1rem;
+        color: #060;
+        margin-bottom: 1rem;
+    }
+
+    .sync-progress {
+        background-color: #e3f2fd;
+        border: 1px solid #90caf9;
+        border-radius: 8px;
+        padding: 1.5rem;
+        color: #1565c0;
+        margin-bottom: 1rem;
+    }
+
+    .progress-message {
+        margin-bottom: 1rem;
+        font-weight: 500;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 24px;
+        background-color: #bbdefb;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background-color: #2196f3;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .progress-text {
+        text-align: center;
+        font-size: 0.9rem;
+        font-weight: 500;
     }
 
     .series-grid {

@@ -167,13 +167,9 @@ export const api = {
   },
 
   async syncBooks(
-    server_url?: string,
-    username?: string,
-    password?: string,
   ): Promise<void> {
     return fetchApi<void>("/sync", {
       method: "POST",
-      body: JSON.stringify({ server_url, username, password }),
     });
   },
 
