@@ -41,7 +41,7 @@ clean:
 	rm -rf frontend/.svelte-kit
 	rm -rf pkg/server/dist
 	mkdir -p pkg/server/dist
-	rm data/install_id
+	rm -f data/install_id
 
 # Install frontend dependencies
 install-frontend:
