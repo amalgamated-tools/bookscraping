@@ -15,7 +15,6 @@ import (
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
-	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
 	"github.com/amalgamated-tools/bookscraping/pkg/otel"
 	"github.com/amalgamated-tools/bookscraping/pkg/server/middleware"
 	"github.com/justinas/alice"
@@ -46,9 +45,9 @@ type ShutdownFunc func(context.Context) error
 
 // Server represents the HTTP server with embedded frontend
 type Server struct {
-	addr     string
-	queries  db.Querier
-	grClient *goodreads.Client
+	addr    string
+	queries db.Querier
+
 	blClient *booklore.Client
 
 	Address string

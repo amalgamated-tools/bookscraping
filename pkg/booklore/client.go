@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"runtime"
+
+	"github.com/amalgamated-tools/bookscraping/pkg/db"
 )
 
 var (
@@ -11,8 +13,9 @@ var (
 )
 
 type Client struct {
-	client *http.Client
-	token  Token
+	queries db.Querier
+	client  *http.Client
+	token   Token
 
 	baseURL  string
 	username string
