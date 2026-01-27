@@ -30,14 +30,14 @@ func (c *Client) Login(ctx context.Context) error {
 
 // ValidateToken checks if the current token is valid by making a request to /api/v1/users/me
 func (c *Client) ValidateToken() error {
-	if c.token.AccessToken == "" {
+	if c.accessToken.AccessToken == "" {
 		return fmt.Errorf("no access token found")
 	}
 	url := c.baseURL + "/api/v1/users/me"
 	req, _ := http.NewRequest("GET", url, nil)
 
 	req.Header.Add("accept", "*/*")
-	req.Header.Add("Authorization", "Bearer "+c.token.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+c.accessToken.AccessToken)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -56,7 +56,7 @@ func (c *Client) ValidateToken() error {
 }
 
 func (c *Client) RefreshToken() error {
-	payload := strings.NewReader(`{"refreshToken": "` + c.token.RefreshToken + `"}`)
+	payload := strings.NewReader(`{"refreshToken": "` + c.accessToken.RefreshToken + `"}`)
 	url := c.baseURL + "/api/v1/auth/refresh"
 	req, _ := http.NewRequest("POST", url, payload)
 
@@ -84,7 +84,7 @@ func (c *Client) RefreshToken() error {
 		return err
 	}
 
-	c.token = token
+	c.accessToken = token
 	// save the token to credentials.json
 	data, err := json.MarshalIndent(token, "", "  ")
 	if err != nil {
@@ -139,7 +139,7 @@ func (c *Client) performLogin(ctx context.Context) error {
 		return err
 	}
 
-	c.token = token
+	c.accessToken = token
 
 	return nil
 }

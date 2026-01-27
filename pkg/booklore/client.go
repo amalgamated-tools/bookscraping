@@ -13,22 +13,23 @@ var (
 )
 
 type Client struct {
-	queries db.Querier
-	client  *http.Client
-	token   Token
+	queries     db.Querier
+	client      *http.Client
+	accessToken Token
 
 	baseURL  string
 	username string
 	password string
 }
 
-func NewClient(baseURL, username, password string) *Client {
-	return &Client{
-		client:   &http.Client{},
-		baseURL:  baseURL,
-		username: username,
-		password: password,
+func NewClient(options ...ClientOption) *Client {
+	c := &Client{
+		client: &http.Client{},
 	}
+	for _, option := range options {
+		option(c)
+	}
+	return c
 }
 
 func (c *Client) UpdateCredentials(baseURL, username, password string) {
@@ -38,11 +39,11 @@ func (c *Client) UpdateCredentials(baseURL, username, password string) {
 }
 
 func (c *Client) GetToken() Token {
-	return c.token
+	return c.accessToken
 }
 
 func (c *Client) SetToken(token Token) {
-	c.token = token
+	c.accessToken = token
 }
 
 // GetProjectRoot returns the root directory of the project.

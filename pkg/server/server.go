@@ -196,7 +196,7 @@ func (s *Server) setupBookloreClient(ctx context.Context) {
 
 	if s.blClient == nil {
 		methodLogger.InfoContext(ctx, "Setting up BookLore client")
-		var serverURL, username, password string
+		var serverURL, username, password, accessToken, refreshToken string
 
 		// Try to get config from database if queries are available
 		if s.queries == nil {
@@ -206,7 +206,7 @@ func (s *Server) setupBookloreClient(ctx context.Context) {
 
 		methodLogger.DebugContext(ctx, "Loading BookLore configuration from database")
 
-		configs, err := s.queries.GetMultipleConfig(ctx, []string{"serverUrl", "username", "password"})
+		configs, err := s.queries.GetMultipleConfig(ctx, []string{db.ConfigKeyServerURL, db.ConfigKeyUsername, db.ConfigKeyPassword, db.ConfigKeyBookloreToken, db.ConfigKeyBookloreRefToken})
 		if err != nil {
 			methodLogger.ErrorContext(ctx, "Failed to load BookLore configuration from database", slog.Any("error", err))
 			return
@@ -221,22 +221,37 @@ func (s *Server) setupBookloreClient(ctx context.Context) {
 
 		for _, cfg := range configs {
 			switch cfg.Key {
-			case "serverUrl":
+			case db.ConfigKeyServerURL:
 				if cfg.Value != "" {
 					serverURL = cfg.Value
 				}
-			case "username":
+			case db.ConfigKeyUsername:
 				if cfg.Value != "" {
 					username = cfg.Value
 				}
-			case "password":
+			case db.ConfigKeyPassword:
 				if cfg.Value != "" {
 					password = cfg.Value
+				}
+			case db.ConfigKeyBookloreToken:
+				if cfg.Value != "" {
+					accessToken = cfg.Value
+				}
+			case db.ConfigKeyBookloreRefToken:
+				if cfg.Value != "" {
+					refreshToken = cfg.Value
 				}
 			}
 		}
 
-		bookloreClient := booklore.NewClient(serverURL, username, password)
+		bookloreClient := booklore.NewClient(
+			booklore.WithBaseURL(serverURL),
+			booklore.WithCredentials(username, password),
+			booklore.WithAccessToken(booklore.Token{
+				AccessToken:  accessToken,
+				RefreshToken: refreshToken,
+			}),
+		)
 		s.blClient = bookloreClient
 	}
 }

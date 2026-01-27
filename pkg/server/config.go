@@ -67,7 +67,13 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a temporary client with the provided credentials
-	client := booklore.NewClient(req.ServerURL, req.Username, req.Password)
+	client := booklore.NewClient(
+		booklore.WithCredentials(
+			req.Username,
+			req.Password,
+		),
+		booklore.WithBaseURL(req.ServerURL),
+	)
 
 	// Try to login
 	if err := client.Login(ctx); err != nil {
