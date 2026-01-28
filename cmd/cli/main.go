@@ -39,12 +39,13 @@ func main() {
 		}
 		fmt.Println("Database migrated successfully")
 	case "sync":
+		eventCh := make(chan string, 100)
 		queries, err := db.SetupDatabase()
 		if err != nil {
 			log.Fatal("Failed to setup database:", err)
 		}
 		client := booklore.NewClient(ctx, booklore.WithDBQueries(queries))
-		if err := client.Sync(ctx); err != nil {
+		if err := client.Sync(ctx, eventCh); err != nil {
 			log.Fatal("Failed to sync:", err)
 		}
 	default:

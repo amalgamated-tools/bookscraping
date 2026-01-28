@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
@@ -20,10 +19,6 @@ var (
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrLoginFailed        = errors.New("login failed")
 	ErrTokenRefreshFailed = errors.New("token refresh failed")
-)
-
-var (
-	credentialsFile = filepath.Join(GetProjectRoot(), ".booklore_credentials.json")
 )
 
 type Token struct {
