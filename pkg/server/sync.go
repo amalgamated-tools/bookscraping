@@ -67,7 +67,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			RefreshToken: storedRefreshToken,
 		})
 		// Try to validate the token
-		if err := client.ValidateToken(); err == nil {
+		if err := client.ValidateToken(ctx); err == nil {
 			slog.Info("Using valid stored token")
 			s.emitEvent("sync_progress", "Authenticated with stored token", map[string]any{})
 		} else {

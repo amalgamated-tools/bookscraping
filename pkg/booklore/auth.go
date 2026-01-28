@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -40,12 +39,15 @@ func (c *Client) Login(ctx context.Context) error {
 }
 
 // ValidateToken checks if the current token is valid by making a request to /api/v1/users/me
-func (c *Client) ValidateToken() error {
+func (c *Client) ValidateToken(ctx context.Context) error {
 	if c.accessToken.AccessToken == "" {
 		return ErrNoAccessToken
 	}
 	url := c.baseURL + "/api/v1/users/me"
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create validate token request: %w", err)
+	}
 
 	req.Header.Add("accept", "*/*")
 	req.Header.Add("Authorization", "Bearer "+c.accessToken.AccessToken)
@@ -66,10 +68,16 @@ func (c *Client) ValidateToken() error {
 	return nil
 }
 
-func (c *Client) RefreshToken() error {
+func (c *Client) RefreshToken(ctx context.Context) error {
+	if c.accessToken.RefreshToken == "" {
+		return ErrTokenRefreshFailed
+	}
 	payload := strings.NewReader(`{"refreshToken": "` + c.accessToken.RefreshToken + `"}`)
 	url := c.baseURL + "/api/v1/auth/refresh"
-	req, _ := http.NewRequest("POST", url, payload)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create refresh token request: %w", err)
+	}
 
 	req.Header.Add("accept", "*/*")
 	req.Header.Add("Content-Type", "application/json")
@@ -84,6 +92,11 @@ func (c *Client) RefreshToken() error {
 			slog.Error("Failed to close response body", slog.Any("error", err))
 		}
 	}()
+
+	if res.StatusCode != 200 {
+		return ErrTokenRefreshFailed
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read refresh token response: %w", err)
@@ -100,15 +113,23 @@ func (c *Client) RefreshToken() error {
 	}
 
 	c.accessToken = token
-	// save the token to credentials.json
-	data, err := json.MarshalIndent(token, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal token: %w", err)
+
+	if err := c.queries.SetConfig(ctx, db.SetConfigParams{
+		Key:   db.BookloreToken,
+		Value: token.AccessToken,
+	}); err != nil {
+		// we will log this, but we can proceed
+		slog.Error("Failed to save access token to db", slog.Any("error", err))
 	}
-	err = os.WriteFile(credentialsFile, data, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write credentials file: %w", err)
+
+	if err := c.queries.SetConfig(ctx, db.SetConfigParams{
+		Key:   db.BookloreRefToken,
+		Value: token.RefreshToken,
+	}); err != nil {
+		// we will log this, but we can proceed
+		slog.Error("Failed to save refresh token to db", slog.Any("error", err))
 	}
+
 	return nil
 }
 
