@@ -15,7 +15,6 @@ import (
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
-	"github.com/amalgamated-tools/bookscraping/pkg/goodreads"
 	"github.com/amalgamated-tools/bookscraping/pkg/otel"
 	"github.com/amalgamated-tools/bookscraping/pkg/server/middleware"
 	"github.com/justinas/alice"
@@ -46,9 +45,9 @@ type ShutdownFunc func(context.Context) error
 
 // Server represents the HTTP server with embedded frontend
 type Server struct {
-	addr     string
-	queries  db.Querier
-	grClient *goodreads.Client
+	addr    string
+	queries db.Querier
+
 	blClient *booklore.Client
 
 	Address string
@@ -143,15 +142,14 @@ func (s *Server) setupRoutes() {
 	// API routes
 	s.mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	s.mux.HandleFunc("POST /api/config", s.handleSaveConfig)
-	s.mux.HandleFunc("POST /api/testConnection", s.handleTestConnection)
+
+	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
 	s.mux.HandleFunc("GET /api/series", s.handleListSeries)
 	s.mux.HandleFunc("GET /api/series/with-stats", s.handleListSeriesWithStats)
 	s.mux.HandleFunc("GET /api/series/{id}", s.handleGetSeries)
 	s.mux.HandleFunc("GET /api/series/{id}/books", s.handleGetSeriesBooks)
 	s.mux.HandleFunc("POST /api/series/{id}/goodreads", s.handleGetSeriesFromGoodreads)
-
-	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
 	s.mux.HandleFunc("GET /api/events", s.handleEvents)
 	s.mux.HandleFunc("POST /api/events/trigger", s.handleTriggerEvent)
@@ -198,7 +196,6 @@ func (s *Server) setupBookloreClient(ctx context.Context) {
 
 	if s.blClient == nil {
 		methodLogger.InfoContext(ctx, "Setting up BookLore client")
-		var serverURL, username, password string
 
 		// Try to get config from database if queries are available
 		if s.queries == nil {
@@ -208,7 +205,7 @@ func (s *Server) setupBookloreClient(ctx context.Context) {
 
 		methodLogger.DebugContext(ctx, "Loading BookLore configuration from database")
 
-		configs, err := s.queries.GetMultipleConfig(ctx, []string{"serverUrl", "username", "password"})
+		configs, err := db.GetAllConfig(ctx, s.queries)
 		if err != nil {
 			methodLogger.ErrorContext(ctx, "Failed to load BookLore configuration from database", slog.Any("error", err))
 			return
@@ -221,24 +218,15 @@ func (s *Server) setupBookloreClient(ctx context.Context) {
 
 		methodLogger.DebugContext(ctx, "Loaded BookLore configuration from database")
 
-		for _, cfg := range configs {
-			switch cfg.Key {
-			case "serverUrl":
-				if cfg.Value != "" {
-					serverURL = cfg.Value
-				}
-			case "username":
-				if cfg.Value != "" {
-					username = cfg.Value
-				}
-			case "password":
-				if cfg.Value != "" {
-					password = cfg.Value
-				}
-			}
-		}
-
-		bookloreClient := booklore.NewClient(serverURL, username, password)
+		bookloreClient := booklore.NewClient(
+			ctx,
+			booklore.WithBaseURL(configs[db.BookloreServerURL]),
+			booklore.WithCredentials(configs[db.BookloreUsername], configs[db.BooklorePassword]),
+			booklore.WithAccessToken(booklore.Token{
+				AccessToken:  configs[db.BookloreToken],
+				RefreshToken: configs[db.BookloreRefToken],
+			}),
+		)
 		s.blClient = bookloreClient
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/amalgamated-tools/bookscraping/pkg/server/middleware"
 	"github.com/google/uuid"
 )
 
@@ -48,7 +49,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	slog.Info("SSE client connected", slog.String("clientId", clientID))
+	slog.Info("SSE client connected", slog.String("clientId", clientID), slog.String("request_id", middleware.GetRequestID(r.Context())))
 
 	// Subscribe to server events
 	go func() {

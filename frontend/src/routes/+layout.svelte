@@ -10,8 +10,11 @@
 		if (browser) {
 			// Load config once when layout mounts
 			loadConfig();
+			console.log("Config loaded in layout");
 			websocketStore.connect();
+
 			console.log("WebSocket connected");
+
 			// Subscribe to config store to check if configured
 			const unsubscribe = configStore.subscribe((config) => {
 				isConfigured = !!(
@@ -32,10 +35,10 @@
 <div class="app">
 	<header>
 		<nav>
-		{#if isConfigured}
-			<a href="/">Home</a>
-			<a href="/series">Series</a>
-		{/if}
+			{#if isConfigured}
+				<a href="/">Home</a>
+				<a href="/series">Series</a>
+			{/if}
 			<a href="/config">Config</a>
 		</nav>
 	</header>
@@ -52,8 +55,9 @@
 <style>
 	:global(body) {
 		margin: 0;
-		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-			Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+		font-family:
+			-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+			Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
 		background-color: #f5f5f5;
 		color: #333;
 	}

@@ -6,9 +6,7 @@
 	let series = $state<Series | null>(null);
 	let books = $state<Book[]>([]);
 	let loading = $state(true);
-	let syncing = $state(false);
 	let error = $state<string | null>(null);
-	let syncMessage = $state<string | null>(null);
 	let pageNumber = $state(1);
 
 	onMount(async () => {
@@ -34,33 +32,6 @@
 		}
 		return '/series';
 	}
-
-	async function syncWithGoodreads() {
-		if (!series) return;
-
-		syncing = true;
-		syncMessage = null;
-		try {
-			const response = await api.fetchSeriesFromGoodreads(series.id);
-			
-			// Reload books after sync
-			books = await api.getSeriesBooks(series.id);
-			books.sort((a, b) => (a.series_number ?? 0) - (b.series_number ?? 0));
-			
-			// Count missing books
-			const missingCount = books.filter(b => b.is_missing).length;
-			syncMessage = `Synced successfully! Found ${response.new_missing_books || 0} new missing books. (${missingCount} total missing)`;
-			
-			// Clear message after 5 seconds
-			setTimeout(() => {
-				syncMessage = null;
-			}, 5000);
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to sync with Goodreads';
-		} finally {
-			syncing = false;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -74,8 +45,6 @@
 		<div class="loading">Loading series...</div>
 	{:else if error}
 		<div class="error">{error}</div>
-	{:else if syncMessage}
-		<div class="success">{syncMessage}</div>
 	{:else if series}
 		<div class="series-header">
 			<div class="header-top">
@@ -85,14 +54,6 @@
 						<p class="series-authors">By {series.authors.join(', ')}</p>
 					{/if}
 				</div>
-				<button 
-					onclick={syncWithGoodreads} 
-					disabled={syncing} 
-					class="sync-btn"
-					title="Sync with Goodreads to find missing books"
-				>
-					{syncing ? "Syncing..." : "📚 Sync Goodreads"}
-				</button>
 			</div>
 		</div>
 
@@ -167,14 +128,6 @@
 		color: #c00;
 	}
 
-	.success {
-		background-color: #efe;
-		border: 1px solid #cfc;
-		border-radius: 8px;
-		padding: 1rem;
-		color: #060;
-	}
-
 	.series-header {
 		margin-bottom: 2rem;
 	}
@@ -197,30 +150,6 @@
 		font-size: 1.05rem;
 		color: #5a6c7d;
 		font-weight: 500;
-	}
-
-	.sync-btn {
-		padding: 0.5rem 1rem;
-		border: 2px solid #2c3e50;
-		background: white;
-		color: #2c3e50;
-		border-radius: 4px;
-		cursor: pointer;
-		font-size: 0.9rem;
-		font-weight: 500;
-		white-space: nowrap;
-		transition: all 0.2s;
-	}
-
-	.sync-btn:hover:not(:disabled) {
-		background: #2c3e50;
-		color: white;
-	}
-
-	.sync-btn:disabled {
-		border-color: #ccc;
-		color: #ccc;
-		cursor: not-allowed;
 	}
 
 	section {

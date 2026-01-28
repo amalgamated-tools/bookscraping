@@ -18,7 +18,7 @@ func (c *Client) LoadAllBooks() ([]Book, error) {
 	}
 
 	req.Header.Add("accept", "*/*")
-	req.Header.Add("Authorization", "Bearer "+c.token.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+c.accessToken.AccessToken)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

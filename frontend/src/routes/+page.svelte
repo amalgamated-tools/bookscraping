@@ -24,6 +24,8 @@
             );
         });
 
+        console.log("Configuration status:", isConfigured);
+
         if (!isConfigured) {
             loading = false;
             return unsubscribe;
@@ -95,21 +97,33 @@
                         <div class="series-card">
                             <div class="series-header">
                                 <h3>{series.name}</h3>
-                                <span class="missing-badge">{series.missing_books} missing</span>
+                                <span class="missing-badge"
+                                    >{series.missing_books} missing</span
+                                >
                             </div>
                             {#if series.description}
-                                <p class="description">{series.description.substring(0, 100)}...</p>
+                                <p class="description">
+                                    {series.description.substring(0, 100)}...
+                                </p>
                             {/if}
                             <div class="series-stats">
                                 <span>{series.total_books} books total</span>
-                                <span>{series.total_books - series.missing_books} owned</span>
+                                <span
+                                    >{series.total_books - series.missing_books} owned</span
+                                >
                             </div>
-                            <a href="/series/{series.id}" class="action-btn">View Series</a>
+                            <a href="/series/{series.id}" class="action-btn"
+                                >View Series</a
+                            >
                         </div>
                     {/each}
                 </div>
                 {#if incompleteSeries.length > 6}
-                    <p class="view-all"><a href="/series">View all {incompleteSeries.length} incomplete series</a></p>
+                    <p class="view-all">
+                        <a href="/series"
+                            >View all {incompleteSeries.length} incomplete series</a
+                        >
+                    </p>
                 {/if}
             </section>
         {/if}
@@ -117,7 +131,9 @@
         {#if allSeries.length > 0}
             <section class="series-section all">
                 <h2>📚 All Series</h2>
-                <p class="section-subtitle">Browse your complete series collection</p>
+                <p class="section-subtitle">
+                    Browse your complete series collection
+                </p>
                 <div class="series-grid">
                     {#each allSeries.slice(0, 6) as series}
                         <div class="series-card">
@@ -125,7 +141,9 @@
                                 <h3>{series.name}</h3>
                             </div>
                             {#if series.description}
-                                <p class="description">{series.description.substring(0, 100)}...</p>
+                                <p class="description">
+                                    {series.description.substring(0, 100)}...
+                                </p>
                             {/if}
                             <div class="series-stats">
                                 <span>{series.total_books} books</span>
@@ -133,11 +151,15 @@
                                     <span>{series.authors.join(", ")}</span>
                                 {/if}
                             </div>
-                            <a href="/series/{series.id}" class="action-btn">View Series</a>
+                            <a href="/series/{series.id}" class="action-btn"
+                                >View Series</a
+                            >
                         </div>
                     {/each}
                 </div>
-                <p class="view-all"><a href="/series">Browse all {allSeries.length} series</a></p>
+                <p class="view-all">
+                    <a href="/series">Browse all {allSeries.length} series</a>
+                </p>
             </section>
         {/if}
     {/if}
