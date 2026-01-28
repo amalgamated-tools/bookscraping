@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
 	"github.com/amalgamated-tools/bookscraping/pkg/db"
@@ -17,31 +16,20 @@ type ConfigRequest struct {
 }
 
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	methodLogger := slog.With(slog.String("method", "handleGetConfig"))
 	ctx := r.Context()
 
-	// Try to get from database first
-	serverUrl, err := s.queries.GetConfig(ctx, db.ConfigKeyServerURL)
-	if err != nil || serverUrl == "" {
-		// Fall back to environment variable
-		serverUrl = os.Getenv("BOOKLORE_SERVER")
-	}
-
-	username, err := s.queries.GetConfig(ctx, db.ConfigKeyUsername)
-	if err != nil || username == "" {
-		// Fall back to environment variable
-		username = os.Getenv("BOOKLORE_USERNAME")
-	}
-
-	password, err := s.queries.GetConfig(ctx, db.ConfigKeyPassword)
-	if err != nil || password == "" {
-		// Fall back to environment variable
-		password = os.Getenv("BOOKLORE_PASSWORD")
+	configs, err := db.GetAllConfig(ctx, s.queries)
+	if err != nil {
+		methodLogger.ErrorContext(ctx, "Failed to get all configs", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, "Failed to get configuration")
+		return
 	}
 
 	writeJSON(w, ConfigRequest{
-		ServerURL: serverUrl,
-		Username:  username,
-		Password:  password,
+		ServerURL: configs[db.BookloreServerURL],
+		Username:  configs[db.BookloreUsername],
+		Password:  configs[db.BooklorePassword],
 	})
 }
 
@@ -68,6 +56,7 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Create a temporary client with the provided credentials
 	client := booklore.NewClient(
+		ctx,
 		booklore.WithCredentials(
 			req.Username,
 			req.Password,
@@ -92,11 +81,11 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Store the configuration in the database
 	for key, value := range map[string]string{
-		db.ConfigKeyBookloreToken:    token.AccessToken,
-		db.ConfigKeyBookloreRefToken: token.RefreshToken,
-		db.ConfigKeyServerURL:        req.ServerURL,
-		db.ConfigKeyUsername:         req.Username,
-		db.ConfigKeyPassword:         req.Password,
+		db.BookloreToken:     token.AccessToken,
+		db.BookloreRefToken:  token.RefreshToken,
+		db.BookloreServerURL: req.ServerURL,
+		db.BookloreUsername:  req.Username,
+		db.BooklorePassword:  req.Password,
 	} {
 		if err := s.queries.SetConfig(ctx, db.SetConfigParams{
 			Key:   key,

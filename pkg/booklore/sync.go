@@ -12,25 +12,23 @@ func (c *Client) Sync(ctx context.Context) error {
 	// we need to make sure that we have an access token that hasn't expired
 	err := c.ValidateToken()
 
-	if err != nil {
-		// token is invalid or expired, try to refresh it
-		methodLogger.Info("Access token invalid or expired, refreshing token")
-		err = c.RefreshToken()
+	// err can be a generic error or one of ErrNoAccessToken/ErrInvalidToken
+	switch err {
+	case nil:
+		methodLogger.Info("Access token valid, proceeding with sync")
+	case ErrInvalidToken:
+		methodLogger.Info("Access token invalid, attempting to refresh token")
+	case ErrNoAccessToken:
+		methodLogger.Info("No access token found, attempting login to obtain access token")
+		err = c.performLogin(ctx)
 
 		if err != nil {
-			// we were unable to refresh the token, let's try to login again
-			methodLogger.Info("Failed to refresh access token, performing login", slog.Any("error", err))
-			err = c.performLogin(ctx)
-
-			if err != nil {
-				// the token was invalid, we couldn't refresh it, and login failed
-				methodLogger.Error("Login failed during sync", slog.Any("error", err))
-				// return a wrapped error
-				return fmt.Errorf("failed to login during sync: %w", err)
-			}
-
+			methodLogger.Error("Login failed during sync", slog.Any("error", err))
+			// return a wrapped error
+			return fmt.Errorf("failed to login during sync: %w", err)
 		}
-		methodLogger.Info("Access token refreshed successfully")
+		methodLogger.Info("Login successful, access token obtained")
 	}
+
 	return nil
 }

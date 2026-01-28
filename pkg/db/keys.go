@@ -4,24 +4,24 @@ import "context"
 
 const (
 	// Config keys for Booklore credentials and tokens
-	ConfigKeyServerURL        = "serverUrl"
-	ConfigKeyUsername         = "username"
-	ConfigKeyPassword         = "password"
-	ConfigKeyBookloreToken    = "booklore_access_token"
-	ConfigKeyBookloreRefToken = "booklore_refresh_token"
+	BookloreServerURL = "booklore_server_url"
+	BookloreUsername  = "booklore_username"
+	BooklorePassword  = "booklore_password"
+	BookloreToken     = "booklore_access_token"
+	BookloreRefToken  = "booklore_refresh_token"
 )
 
 func GetAllConfigKeys() []string {
 	return []string{
-		ConfigKeyServerURL,
-		ConfigKeyUsername,
-		ConfigKeyPassword,
-		ConfigKeyBookloreToken,
-		ConfigKeyBookloreRefToken,
+		BookloreServerURL,
+		BookloreUsername,
+		BooklorePassword,
+		BookloreToken,
+		BookloreRefToken,
 	}
 }
 
-func (q *Queries) GetAllConfig(ctx context.Context) (map[string]string, error) {
+func GetAllConfig(ctx context.Context, q Querier) (map[string]string, error) {
 	configs, err := q.GetMultipleConfig(ctx, GetAllConfigKeys())
 	if err != nil {
 		return nil, err

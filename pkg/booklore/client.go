@@ -1,6 +1,8 @@
 package booklore
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"runtime"
@@ -22,12 +24,17 @@ type Client struct {
 	password string
 }
 
-func NewClient(options ...ClientOption) *Client {
+func NewClient(ctx context.Context, options ...ClientOption) *Client {
 	c := &Client{
 		client: &http.Client{},
 	}
 	for _, option := range options {
 		option(c)
+	}
+	if err := c.loadCredentials(ctx); err != nil {
+		// we just log the error here, as credentials might not be set yet
+		// and that's fine
+		slog.ErrorContext(ctx, "Failed to load credentials from db", slog.Any("error", err))
 	}
 	return c
 }

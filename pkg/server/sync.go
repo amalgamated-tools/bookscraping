@@ -40,11 +40,13 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	// Precedence: Request Body > DB Config > Env Vars (via initial client)
 	if creds.ServerURL != "" && creds.Username != "" && creds.Password != "" {
 		client = booklore.NewClient(
+			ctx,
 			booklore.WithBaseURL(creds.ServerURL),
 			booklore.WithCredentials(creds.Username, creds.Password),
 		)
 	} else if storedServerUrl != "" && storedUsername != "" && storedPassword != "" {
 		client = booklore.NewClient(
+			ctx,
 			booklore.WithBaseURL(storedServerUrl),
 			booklore.WithCredentials(storedUsername, storedPassword),
 		)

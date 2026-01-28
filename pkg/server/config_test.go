@@ -24,11 +24,11 @@ func TestServer_handleGetConfig(t *testing.T) {
 			name: "All values from database",
 			getConfigFn: func(ctx context.Context, key string) (string, error) {
 				switch key {
-				case db.ConfigKeyServerURL:
+				case db.BookloreServerURL:
 					return "https://booklore.example.com", nil
-				case db.ConfigKeyUsername:
+				case db.BookloreUsername:
 					return "testuser", nil
-				case db.ConfigKeyPassword:
+				case db.BooklorePassword:
 					return "testpass", nil
 				}
 				return "", nil
@@ -64,11 +64,11 @@ func TestServer_handleGetConfig(t *testing.T) {
 			name: "Partial database values with env fallback",
 			getConfigFn: func(ctx context.Context, key string) (string, error) {
 				switch key {
-				case db.ConfigKeyServerURL:
+				case db.BookloreServerURL:
 					return "https://booklore.example.com", nil
-				case db.ConfigKeyUsername:
+				case db.BookloreUsername:
 					return "", nil // Empty, should fall back to env
-				case db.ConfigKeyPassword:
+				case db.BooklorePassword:
 					return "dbpass", nil
 				}
 				return "", nil

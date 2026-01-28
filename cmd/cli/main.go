@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	switch os.Args[1] {
 	case "trigger":
 		triggerCmd := flag.NewFlagSet("trigger", flag.ExitOnError)
@@ -42,8 +43,10 @@ func main() {
 		if err != nil {
 			log.Fatal("Failed to setup database:", err)
 		}
-		client := booklore.NewClient(booklore.WithDBQueries(queries))
-		client.Sync(context.Background())
+		client := booklore.NewClient(ctx, booklore.WithDBQueries(queries))
+		if err := client.Sync(ctx); err != nil {
+			log.Fatal("Failed to sync:", err)
+		}
 	default:
 		log.Fatal("Unknown command:", os.Args[1])
 	}
