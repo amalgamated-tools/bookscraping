@@ -1,2 +1,2 @@
 web: air
-frontend: cd frontend && pnpm run dev
+frontend: cd frontend && pnpm run dev --host

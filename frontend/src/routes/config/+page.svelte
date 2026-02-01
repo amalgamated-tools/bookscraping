@@ -47,12 +47,6 @@
 		saving = true;
 
 		try {
-			// Test connection first before saving
-			console.log("Testing connection before save...");
-			await api.testConnection(serverUrl, username, password);
-
-			// If test passed, save to backend
-			console.log("Connection test passed, saving config...");
 			await api.saveConfig(serverUrl, username, password);
 
 			// Update the store with new config
@@ -66,7 +60,8 @@
 			}, 3000);
 		} catch (e) {
 			console.error("Failed to save config:", e);
-			errorMessage = e instanceof Error ? e.message : "Failed to save configuration";
+			errorMessage =
+				e instanceof Error ? e.message : "Failed to save configuration";
 		} finally {
 			saving = false;
 		}

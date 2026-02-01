@@ -8,10 +8,15 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
 	_ "modernc.org/sqlite"
+)
+
+var (
+	_, b, _, _ = runtime.Caller(0)
 )
 
 func SetupDatabase() (Querier, error) {
@@ -23,7 +28,7 @@ func SetupDatabase() (Querier, error) {
 		dbFilePath = "/data/bookscraping.db"
 		slog.Debug("Using mounted /data folder", slog.String("path", dbFilePath))
 	} else {
-		dbFilePath = "./db/bookscraping.db"
+		dbFilePath = GetProjectRoot() + "/db/bookscraping.db"
 		slog.Debug("Using local db folder", slog.String("path", dbFilePath))
 	}
 
@@ -81,11 +86,10 @@ func runMigrations(sqlDB *sql.DB) error {
 		return fmt.Errorf("failed to create schema_migrations table: %w", err)
 	}
 
-	// Find and sort migration files
-	migrationsDir := "db/migrations"
-	entries, err := os.ReadDir(migrationsDir)
+	// Find and sort migration files from embedded filesystem
+	entries, err := fs.ReadDir(Migrations, "migrations")
 	if err != nil {
-		return fmt.Errorf("failed to read migrations directory: %w", err)
+		return fmt.Errorf("failed to read embedded migrations: %w", err)
 	}
 
 	var migrations []fs.DirEntry
@@ -117,9 +121,8 @@ func runMigrations(sqlDB *sql.DB) error {
 			continue
 		}
 
-		// Read migration file
-		migrationPath := filepath.Join(migrationsDir, filename)
-		content, err := os.ReadFile(migrationPath)
+		// Read migration file from embedded filesystem
+		content, err := fs.ReadFile(Migrations, filepath.Join("migrations", filename))
 		if err != nil {
 			return fmt.Errorf("failed to read migration file %s: %w", filename, err)
 		}
@@ -281,4 +284,9 @@ func removeInlineComments(sql string) string {
 	}
 
 	return result.String()
+}
+
+// GetProjectRoot returns the root directory of the project.
+func GetProjectRoot() string {
+	return filepath.Join(filepath.Dir(b), "../..") //nolint:gocritic // This is a safe operation.
 }

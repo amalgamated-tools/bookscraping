@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"flag"
@@ -11,15 +12,13 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/amalgamated-tools/bookscraping/pkg/booklore"
+	"github.com/amalgamated-tools/bookscraping/pkg/db"
 	_ "modernc.org/sqlite"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		// Default behavior - run the goodreads client test
-		return
-	}
-
+	ctx := context.Background()
 	switch os.Args[1] {
 	case "trigger":
 		triggerCmd := flag.NewFlagSet("trigger", flag.ExitOnError)
@@ -33,6 +32,22 @@ func main() {
 			log.Fatal("--message flag is required")
 		}
 		triggerEvent(*serverURL, *message)
+	case "migrate":
+		_, err := db.SetupDatabase()
+		if err != nil {
+			log.Fatal("Failed to setup database:", err)
+		}
+		fmt.Println("Database migrated successfully")
+	case "sync":
+		eventCh := make(chan string, 100)
+		queries, err := db.SetupDatabase()
+		if err != nil {
+			log.Fatal("Failed to setup database:", err)
+		}
+		client := booklore.NewClient(ctx, booklore.WithDBQueries(queries))
+		if err := client.Sync(ctx, eventCh); err != nil {
+			log.Fatal("Failed to sync:", err)
+		}
 	default:
 		log.Fatal("Unknown command:", os.Args[1])
 	}

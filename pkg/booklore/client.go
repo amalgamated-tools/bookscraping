@@ -1,9 +1,13 @@
 package booklore
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"runtime"
+
+	"github.com/amalgamated-tools/bookscraping/pkg/db"
 )
 
 var (
@@ -11,21 +15,28 @@ var (
 )
 
 type Client struct {
-	client *http.Client
-	token  Token
+	queries     db.Querier
+	client      *http.Client
+	accessToken Token
 
 	baseURL  string
 	username string
 	password string
 }
 
-func NewClient(baseURL, username, password string) *Client {
-	return &Client{
-		client:   &http.Client{},
-		baseURL:  baseURL,
-		username: username,
-		password: password,
+func NewClient(ctx context.Context, options ...ClientOption) *Client {
+	c := &Client{
+		client: &http.Client{},
 	}
+	for _, option := range options {
+		option(c)
+	}
+	if err := c.loadCredentials(ctx); err != nil {
+		// we just log the error here, as credentials might not be set yet
+		// and that's fine
+		slog.ErrorContext(ctx, "Failed to load credentials from db", slog.Any("error", err))
+	}
+	return c
 }
 
 func (c *Client) UpdateCredentials(baseURL, username, password string) {
@@ -35,11 +46,11 @@ func (c *Client) UpdateCredentials(baseURL, username, password string) {
 }
 
 func (c *Client) GetToken() Token {
-	return c.token
+	return c.accessToken
 }
 
 func (c *Client) SetToken(token Token) {
-	c.token = token
+	c.accessToken = token
 }
 
 // GetProjectRoot returns the root directory of the project.
